@@ -48,6 +48,7 @@ class App:
         self._recompute()
         self._loop()
         self.root.protocol("WM_DELETE_WINDOW", self._on_close)
+        self.root.after(300, self._maybe_consent)
 
     # ---------- UI ----------
     def _build(self):
@@ -106,6 +107,7 @@ class App:
         tk.Button(foot, text="➕ Offline nachtragen", command=self._manual).pack(side="left", padx=3)
         tk.Button(foot, text="⚙ Einstellungen", command=self._settings).pack(side="left", padx=3)
         tk.Button(foot, text="ℹ Datenschutz", command=self._privacy).pack(side="left", padx=3)
+        tk.Button(foot, text="🗑 Daten löschen", command=self._delete_data).pack(side="left", padx=3)
         tk.Button(foot, text="Beenden", command=self._quit).pack(side="right")
 
     # ---------- Daten ----------
@@ -264,6 +266,57 @@ class App:
             "Mess-Intervall, Fokus-Schwellen und die AGFEO-Erkennung anpassen. "
             "Danach Tracking einmal stoppen und neu starten, dann oben auf Neu-Laden (Pfeil).")
         self.cfg = config.load_config()
+
+    def _delete_data(self):
+        if messagebox.askyesno(
+                "Daten löschen",
+                "Wirklich ALLE erfassten Daten unwiderruflich löschen?\n"
+                "(Einstellungen bleiben erhalten.)"):
+            try:
+                if self.tracker.running:
+                    self.tracker.stop()
+                    self.btn.config(text="▶  Tracking starten", bg="#16a34a",
+                                    activebackground="#15803d")
+                    self.status.config(text="gestoppt", fg="#64748b")
+            except Exception:
+                pass
+            storage.clear_all()
+            self._recompute()
+            messagebox.showinfo("Erledigt", "Alle erfassten Daten wurden gelöscht.")
+
+    def _maybe_consent(self):
+        if config.has_consent():
+            return
+        win = tk.Toplevel(self.root)
+        win.title("Willkommen — kurz zur Einordnung")
+        win.transient(self.root)
+        win.grab_set()
+        win.resizable(False, False)
+        tk.Label(win, text="Dein persönliches Auswertungs-Tool", font=("Segoe UI", 13, "bold")
+                 ).pack(padx=20, pady=(16, 6))
+        msg = ("Dieses Tool hilft DIR, deinen eigenen Arbeitstag am PC zu verstehen und\n"
+               "Abläufe zu verbessern. Du startest und stoppst selbst.\n\n"
+               "• Alle Daten bleiben NUR auf diesem PC — nichts geht ins Internet.\n"
+               "• Kein Mitschneiden von Texten, keine Screenshots, keine Kamera.\n"
+               "• Nur Hauptadresse (z. B. www.westnetz.de), nicht der volle Link.\n"
+               "• Nur du siehst die Auswertung. Keine Leistungsbewertung.\n"
+               "• Du kannst die Daten jederzeit löschen.")
+        tk.Label(win, text=msg, justify="left", font=("Segoe UI", 10)).pack(padx=20, pady=6)
+        var = tk.IntVar(value=0)
+        tk.Checkbutton(win, text="Ich nutze das Tool freiwillig zur eigenen Auswertung.",
+                       variable=var, font=("Segoe UI", 10)).pack(padx=20, pady=(2, 4))
+
+        def accept():
+            if not var.get():
+                messagebox.showinfo("Hinweis", "Bitte das Häkchen setzen, um fortzufahren.")
+                return
+            config.set_consent()
+            win.destroy()
+
+        tk.Button(win, text="Verstanden & los", command=accept, bg="#16a34a", fg="white",
+                  relief="flat", padx=16, pady=6, font=("Segoe UI", 10, "bold")
+                  ).pack(pady=(4, 16))
+        win.protocol("WM_DELETE_WINDOW", lambda: None)
 
     def _privacy(self):
         messagebox.showinfo(

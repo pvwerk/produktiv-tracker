@@ -59,6 +59,13 @@ def add_sample(ts, duration, process, category, domain, title, idle):
         )
 
 
+def clear_all():
+    """Löscht alle erfassten Daten (volle Kontrolle für die Nutzerin)."""
+    with _lock, _conn() as c:
+        c.execute("DELETE FROM samples")
+        c.execute("DELETE FROM sessions")
+
+
 def fetch_samples(start_ts, end_ts):
     with _lock, _conn() as c:
         rows = c.execute(

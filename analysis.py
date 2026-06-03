@@ -280,10 +280,29 @@ def analyze(samples, cfg=None):
     }
 
 
+def best_focus_window(hourly_level):
+    """Findet das beste zusammenhängende 2-Stunden-Fenster (meiste produktive Zeit)."""
+    prod = {h: v.get("produktiv", 0) for h, v in hourly_level.items()}
+    if not prod or sum(prod.values()) == 0:
+        return None
+    best_h, best_sum = None, -1
+    for h in range(0, 23):
+        s = prod.get(h, 0) + prod.get(h + 1, 0)
+        if s > best_sum:
+            best_sum, best_h = s, h
+    if best_h is None or best_sum <= 0:
+        return None
+    return (best_h, best_h + 2)
+
+
 def optimization_hints(A):
     hints = []
     active = A["active"] or 1
     f = A["focus"]
+    win = best_focus_window(A.get("hourly_level", {}))
+    if win:
+        hints.append(f"Deine produktivsten Stunden: {win[0]:02d}–{win[1]:02d} Uhr. "
+                     f"Leg anspruchsvolle Aufgaben bevorzugt in dieses Fenster.")
     if f["deepwork_count"] == 0 and active > 1800:
         hints.append("Heute kein echter Deep-Work-Block (≥ 25 Min am Stück) — der Tag war "
                      "stark zerstückelt. Versuch feste, ungestörte Fokusfenster.")

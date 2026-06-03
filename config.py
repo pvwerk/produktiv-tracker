@@ -86,6 +86,22 @@ def config_path():
     return os.path.join(data_dir(), "config.json")
 
 
+def _consent_path():
+    return os.path.join(data_dir(), ".consent")
+
+
+def has_consent():
+    return os.path.exists(_consent_path())
+
+
+def set_consent():
+    try:
+        with open(_consent_path(), "w", encoding="utf-8") as f:
+            f.write("ok")
+    except Exception:
+        pass
+
+
 def load_config():
     """Lädt config.json, legt sie beim ersten Start mit Defaults an."""
     path = config_path()
