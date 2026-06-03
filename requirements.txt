@@ -1,0 +1,5 @@
+psutil>=5.9
+uiautomation>=2.0.18
+matplotlib>=3.7
+pystray>=0.19
+pillow>=10.0
