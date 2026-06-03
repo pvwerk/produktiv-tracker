@@ -50,6 +50,7 @@ class Tracker:
         self.cfg = config.load_config()
         self.interval = float(self.cfg.get("sample_interval", config.DEFAULT_SAMPLE_INTERVAL))
         self.idle_threshold = float(self.cfg.get("idle_threshold", config.DEFAULT_IDLE_THRESHOLD))
+        self.store_titles = bool(self.cfg.get("store_window_titles", True))
 
     def start(self):
         if self.running:
@@ -108,9 +109,10 @@ class Tracker:
                 domain = self._browser_host(hwnd, exe, title)
 
             category = "Abwesend" if is_idle else categorize(self.cfg, exe, domain)
+            stored_title = title if getattr(self, "store_titles", True) else ""
 
             try:
-                storage.add_sample(now, dur, exe, category, domain, title, is_idle)
+                storage.add_sample(now, dur, exe, category, domain, stored_title, is_idle)
             except Exception:
                 pass
 

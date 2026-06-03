@@ -45,6 +45,31 @@ DEFAULT_DOMAIN_CATEGORIES = {
     "instagram.com": "Privat/Ablenkung",
 }
 
+# Produktivitäts-Einordnung je Kategorie: "produktiv" | "neutral" | "ablenkung".
+# WICHTIG: Das ist KEINE Leistungsbewertung, sondern hilft NUR ihr selbst, Muster zu sehen.
+DEFAULT_PRODUCTIVITY_LEVELS = {
+    "Telefonie (AGFEO)": "produktiv",
+    "Office": "produktiv",
+    "E-Mail": "neutral",
+    "Web": "neutral",
+    "Kommunikation": "neutral",
+    "System/Dateien": "neutral",
+    "Sonstige Programme": "neutral",
+    "Unbekannt": "neutral",
+    "Privat/Ablenkung": "ablenkung",
+}
+
+LEVEL_COLORS = {"produktiv": "#16a34a", "neutral": "#3b82f6", "ablenkung": "#ef4444",
+                "Abwesend": "#9ca3af"}
+
+# Fokus-/Auswertungs-Parameter (in Minuten bzw. Sekunden)
+DEFAULT_FOCUS_MIN_MINUTES = 15      # ab hier gilt ein ununterbrochener Block als "Fokus"
+DEFAULT_DEEPWORK_MIN_MINUTES = 25   # ab hier "Deep Work"
+DEFAULT_IDLE_TOLERANCE = 120        # kurze Pausen (< X s) brechen einen Fokusblock nicht
+DEFAULT_SWITCH_PENALTY = 45         # geschätzte verlorene Sekunden je unnötigem Wechsel
+# Datenschutz: Fenstertitel speichern? (für Sequenz-Erkennung hilfreich, aber inhaltsnah)
+DEFAULT_STORE_TITLES = True
+
 
 def data_dir():
     base = os.environ.get("LOCALAPPDATA") or os.path.expanduser("~")
@@ -70,6 +95,12 @@ def load_config():
         "process_categories": DEFAULT_PROCESS_CATEGORIES,
         "domain_categories": DEFAULT_DOMAIN_CATEGORIES,
         "agfeo_process_hints": AGFEO_PROCESS_HINTS,
+        "productivity_levels": DEFAULT_PRODUCTIVITY_LEVELS,
+        "focus_min_minutes": DEFAULT_FOCUS_MIN_MINUTES,
+        "deepwork_min_minutes": DEFAULT_DEEPWORK_MIN_MINUTES,
+        "idle_tolerance": DEFAULT_IDLE_TOLERANCE,
+        "switch_penalty": DEFAULT_SWITCH_PENALTY,
+        "store_window_titles": DEFAULT_STORE_TITLES,
     }
     if os.path.exists(path):
         try:
