@@ -24,6 +24,14 @@ jobs:
           pip install -r requirements.txt
           pip install pyinstaller
 
+      - name: Build-Nummer einbetten
+        shell: bash
+        run: |
+          BID="${{ github.run_number }}-${GITHUB_SHA:0:7}"
+          echo "BUILD_ID = \"$BID\"" > _buildinfo.py
+          echo "{\"build\": \"$BID\", \"name\": \"Produktivitaets-Tracker.exe\"}" > version.json
+          echo "Build-ID: $BID"
+
       - name: Build EXE
         run: pyinstaller build.spec
 
@@ -40,5 +48,7 @@ jobs:
           name: Produktivitäts-Tracker (neueste Version)
           body: |
             Fertige Windows-Anwendung. Datei **Produktivitaets-Tracker.exe** herunterladen und doppelklicken.
-            Alle Daten bleiben lokal auf dem PC.
-          files: dist/Produktivitaets-Tracker.exe
+            Die App aktualisiert sich künftig selbst. Alle Daten bleiben lokal auf dem PC.
+          files: |
+            dist/Produktivitaets-Tracker.exe
+            version.json

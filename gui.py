@@ -16,6 +16,7 @@ import storage
 import analysis
 import charts
 import report
+import updater
 from sampler import Tracker
 from ki_prompt import build_ki_prompt
 
@@ -49,6 +50,7 @@ class App:
         self._loop()
         self.root.protocol("WM_DELETE_WINDOW", self._on_close)
         self.root.after(300, self._maybe_consent)
+        self.root.after(2500, lambda: self._check_update(silent=True))
 
     # ---------- UI ----------
     def _build(self):
@@ -108,6 +110,7 @@ class App:
         tk.Button(foot, text="⚙ Einstellungen", command=self._settings).pack(side="left", padx=3)
         tk.Button(foot, text="ℹ Datenschutz", command=self._privacy).pack(side="left", padx=3)
         tk.Button(foot, text="🗑 Daten löschen", command=self._delete_data).pack(side="left", padx=3)
+        tk.Button(foot, text="⤓ Update", command=lambda: self._check_update(silent=False)).pack(side="left", padx=3)
         tk.Button(foot, text="Beenden", command=self._quit).pack(side="right")
 
     # ---------- Daten ----------
@@ -283,6 +286,39 @@ class App:
             storage.clear_all()
             self._recompute()
             messagebox.showinfo("Erledigt", "Alle erfassten Daten wurden gelöscht.")
+
+    def _check_update(self, silent=True):
+        def work():
+            try:
+                new = updater.check_update()
+            except Exception:
+                new = None
+            self.root.after(0, lambda: self._update_result(new, silent))
+        threading.Thread(target=work, daemon=True).start()
+
+    def _update_result(self, new, silent):
+        if not new:
+            if not silent:
+                if not updater.is_frozen():
+                    messagebox.showinfo("Update", "Update-Prüfung nur in der installierten "
+                                                   "App (.exe) verfügbar.")
+                else:
+                    messagebox.showinfo("Update", "Du hast bereits die neueste Version.")
+            return
+        if messagebox.askyesno("Update verfügbar",
+                               "Eine neuere Version ist verfügbar.\n\n"
+                               "Jetzt herunterladen und installieren? "
+                               "Die App startet danach automatisch neu."):
+            try:
+                if self.tracker.running:
+                    self.tracker.stop()
+                if updater.apply_update():
+                    messagebox.showinfo("Update", "Update wird installiert — die App startet "
+                                                  "gleich neu.")
+                    self._quit()
+            except Exception as e:
+                messagebox.showerror("Update fehlgeschlagen",
+                                     f"{e}\n\nDu kannst die neue Version auch manuell laden.")
 
     def _maybe_consent(self):
         if config.has_consent():
