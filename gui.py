@@ -107,9 +107,11 @@ class App:
         tk.Button(foot, text="📑 CSV", command=self._csv).pack(side="left", padx=3)
         tk.Button(foot, text="🤖 Für KI exportieren", command=self._ki).pack(side="left", padx=3)
         tk.Button(foot, text="➕ Offline nachtragen", command=self._manual).pack(side="left", padx=3)
+        tk.Button(foot, text="🧩 Aufgaben-Erkennung", command=self._task_matchers).pack(side="left", padx=3)
         tk.Button(foot, text="⚙ Einstellungen", command=self._settings).pack(side="left", padx=3)
         tk.Button(foot, text="ℹ Datenschutz", command=self._privacy).pack(side="left", padx=3)
         tk.Button(foot, text="🗑 Daten löschen", command=self._delete_data).pack(side="left", padx=3)
+        tk.Button(foot, text="🆕 Was ist neu", command=self._changelog).pack(side="left", padx=3)
         tk.Button(foot, text="⤓ Update", command=lambda: self._check_update(silent=False)).pack(side="left", padx=3)
         tk.Button(foot, text="Beenden", command=self._quit).pack(side="right")
 
@@ -269,6 +271,25 @@ class App:
             "Mess-Intervall, Fokus-Schwellen und die AGFEO-Erkennung anpassen. "
             "Danach Tracking einmal stoppen und neu starten, dann oben auf Neu-Laden (Pfeil).")
         self.cfg = config.load_config()
+
+    def _task_matchers(self):
+        TaskMatcherDialog(self.root, on_saved=lambda: (setattr(self, "cfg", config.load_config()), self._recompute()))
+
+    def _changelog(self):
+        try:
+            import changelog
+            text = changelog.CHANGELOG
+        except Exception:
+            text = "Kein Änderungsverlauf verfügbar."
+        win = tk.Toplevel(self.root)
+        win.title("Was ist neu?")
+        win.geometry("560x520")
+        tk.Label(win, text="🆕 Änderungsverlauf", font=("Segoe UI", 13, "bold")).pack(padx=14, pady=(12, 6), anchor="w")
+        frame = tk.Frame(win); frame.pack(fill="both", expand=True, padx=14, pady=(0, 12))
+        sb = tk.Scrollbar(frame); sb.pack(side="right", fill="y")
+        txt = tk.Text(frame, wrap="word", font=("Segoe UI", 10), yscrollcommand=sb.set)
+        txt.insert("1.0", text); txt.config(state="disabled")
+        txt.pack(side="left", fill="both", expand=True); sb.config(command=txt.yview)
 
     def _delete_data(self):
         if messagebox.askyesno(
@@ -463,6 +484,105 @@ class ManualDialog(tk.Toplevel):
         # als ein Sample am Endzeitpunkt mit der Dauer ablegen
         end_ts = d.timestamp() + minutes * 60
         storage.add_sample(end_ts, minutes * 60, "(offline)", cat, None, "manuell nachgetragen", False)
+        if self.on_saved:
+            self.on_saved()
+        self.destroy()
+
+
+class TaskMatcherDialog(tk.Toplevel):
+    """Aufgaben-Erkennung: pro Seite/App festlegen, woran erkannt wird, dass
+    mehrere Fenster zur SELBEN Aufgabe gehören (z.B. gleicher Kundenname im Titel)."""
+
+    def __init__(self, master, on_saved=None):
+        super().__init__(master)
+        self.title("Aufgaben-Erkennung")
+        self.geometry("720x560")
+        self.on_saved = on_saved
+        self.cfg = config.load_config()
+        self.rows = []  # (frame, match_entry, pattern_entry)
+
+        tk.Label(self, text="🧩 Aufgaben-Erkennung", font=("Segoe UI", 13, "bold")).pack(anchor="w", padx=14, pady=(12, 2))
+        tk.Label(self, justify="left", font=("Segoe UI", 9), fg="#475569", wraplength=680, text=(
+            "Mehrere Fenster zählen als EINE Aufgabe, wenn im Fenstertitel dieselbe „Schlagzeile\" steht "
+            "(z. B. Kundenname oder Adresse). Lege je Seite/Programm fest, welcher Teil des Titels der "
+            "Identifikator ist.\n\n"
+            "• Seite/App: Teil der Adresse oder des Programmnamens, z. B. verwaltung.mein-handwerker.de oder westnetz.de\n"
+            "• Muster (Regex): der Teil in Klammern ( ) wird als Identifikator genommen. Leer = ganzer Titel.\n"
+            "  Beispiele:  Kunde:?\\s*([^|\\-–]+)   ·   ([0-9]{5,})   ·   ^([^|\\-–]+)")
+        ).pack(anchor="w", padx=14)
+
+        # Scrollbarer Bereich für die Regeln
+        self.list_frame = tk.Frame(self)
+        self.list_frame.pack(fill="both", expand=True, padx=14, pady=8)
+        head = tk.Frame(self.list_frame); head.pack(fill="x")
+        tk.Label(head, text="Seite / App", width=30, anchor="w", font=("Segoe UI", 9, "bold")).pack(side="left")
+        tk.Label(head, text="Muster (Regex, Gruppe 1)", anchor="w", font=("Segoe UI", 9, "bold")).pack(side="left")
+
+        for m in (self.cfg.get("task_matchers") or []):
+            self._add_row(m.get("match", ""), m.get("pattern", ""))
+        if not (self.cfg.get("task_matchers") or []):
+            self._add_row("", "")
+
+        tk.Button(self, text="+ Regel hinzufügen", command=lambda: self._add_row("", "")).pack(anchor="w", padx=14)
+
+        # Test
+        test = tk.LabelFrame(self, text="Test", padx=8, pady=6)
+        test.pack(fill="x", padx=14, pady=8)
+        tk.Label(test, text="Fenstertitel zum Testen:").pack(anchor="w")
+        self.test_in = tk.Entry(test); self.test_in.pack(fill="x")
+        tk.Button(test, text="Identifikator anzeigen", command=self._test).pack(anchor="w", pady=4)
+        self.test_out = tk.Label(test, text="", fg="#1B3A6B", font=("Segoe UI", 10, "bold"))
+        self.test_out.pack(anchor="w")
+
+        bar = tk.Frame(self); bar.pack(fill="x", padx=14, pady=(0, 12))
+        tk.Button(bar, text="Abbrechen", command=self.destroy).pack(side="right", padx=4)
+        tk.Button(bar, text="Speichern", command=self._save, bg="#16a34a", fg="white", relief="flat", padx=14, pady=4).pack(side="right")
+
+    def _add_row(self, match, pattern):
+        f = tk.Frame(self.list_frame); f.pack(fill="x", pady=2)
+        me = tk.Entry(f, width=30); me.insert(0, match); me.pack(side="left")
+        pe = tk.Entry(f); pe.insert(0, pattern); pe.pack(side="left", fill="x", expand=True, padx=(4, 4))
+        btn = tk.Button(f, text="✕", command=lambda: (f.destroy(), self.rows.remove(entry)))
+        btn.pack(side="left")
+        entry = (f, me, pe)
+        self.rows.append(entry)
+
+    def _collect(self):
+        out = []
+        for _, me, pe in self.rows:
+            m = me.get().strip()
+            if m:
+                out.append({"match": m, "pattern": pe.get().strip()})
+        return out
+
+    def _test(self):
+        import re
+        title = self.test_in.get()
+        for mm in self._collect():
+            pat = mm.get("pattern")
+            try:
+                if pat:
+                    r = re.search(pat, title, re.IGNORECASE)
+                    if r:
+                        tok = r.group(1) if r.groups() else r.group(0)
+                        tok = re.sub(r"\s+", " ", tok).strip()
+                        self.test_out.config(text="„" + mm["match"] + "\"  →  Aufgabe: " + tok, fg="#16a34a")
+                        return
+            except re.error as e:
+                self.test_out.config(text=f"Ungültiges Muster bei „{mm['match']}\": {e}", fg="#ef4444")
+                return
+        self.test_out.config(text="Kein Treffer (kein Muster passt / greift).", fg="#9ca3af")
+
+    def _save(self):
+        import json
+        cfg = config.load_config()
+        cfg["task_matchers"] = self._collect()
+        try:
+            with open(config.config_path(), "w", encoding="utf-8") as fh:
+                json.dump(cfg, fh, ensure_ascii=False, indent=2)
+        except Exception as e:
+            messagebox.showerror("Fehler", str(e)); return
+        messagebox.showinfo("Gespeichert", "Aufgaben-Erkennung gespeichert. Die Auswertung wird neu berechnet.")
         if self.on_saved:
             self.on_saved()
         self.destroy()

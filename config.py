@@ -66,9 +66,15 @@ LEVEL_COLORS = {"produktiv": "#16a34a", "neutral": "#3b82f6", "ablenkung": "#ef4
 DEFAULT_FOCUS_MIN_MINUTES = 15      # ab hier gilt ein ununterbrochener Block als "Fokus"
 DEFAULT_DEEPWORK_MIN_MINUTES = 25   # ab hier "Deep Work"
 DEFAULT_IDLE_TOLERANCE = 120        # kurze Pausen (< X s) brechen einen Fokusblock nicht
+DEFAULT_PAUSE_TOLERANCE = 90        # kurzer Abstecher (< X s) in eine andere Tätigkeit = Pause, kein Wechsel
 DEFAULT_SWITCH_PENALTY = 45         # geschätzte verlorene Sekunden je unnötigem Wechsel
-# Datenschutz: Fenstertitel speichern? (für Sequenz-Erkennung hilfreich, aber inhaltsnah)
+# Datenschutz: Fenstertitel speichern? (für Aufgaben-/Sequenz-Erkennung nötig, aber inhaltsnah)
 DEFAULT_STORE_TITLES = True
+
+# Aufgaben-Erkennung: mehrere Fenster gehören zur selben Aufgabe, wenn im Titel
+# dieselbe "Schlagzeile" steht. Pro Seite/App ein Abgleich-Muster (Regex, Gruppe 1
+# = Identifikator). In den Einstellungen des Tools pflegbar.
+DEFAULT_TASK_MATCHERS = []  # z.B. [{"match":"verwaltung.mein-handwerker.de","pattern":"Kunde:?\\s*([^|\\-–]+)"}]
 
 
 def data_dir():
@@ -115,8 +121,10 @@ def load_config():
         "focus_min_minutes": DEFAULT_FOCUS_MIN_MINUTES,
         "deepwork_min_minutes": DEFAULT_DEEPWORK_MIN_MINUTES,
         "idle_tolerance": DEFAULT_IDLE_TOLERANCE,
+        "pause_tolerance": DEFAULT_PAUSE_TOLERANCE,
         "switch_penalty": DEFAULT_SWITCH_PENALTY,
         "store_window_titles": DEFAULT_STORE_TITLES,
+        "task_matchers": DEFAULT_TASK_MATCHERS,
     }
     if os.path.exists(path):
         try:

@@ -40,7 +40,7 @@ def draw_overview(fig, A, period_label=""):
     f = A["focus"]
     axh.text(0, 0.7,
              f"Aktiv: {fmt_dur(A['active'])}    Abwesend: {fmt_dur(A['idle'])}    "
-             f"Aufgabenwechsel: {A['switches']}    Fokus-Anteil: {f['focus_quote']*100:.0f}%",
+             f"Aufgaben: {A.get('task_count', 0)}    Wechsel: {A['switches']}    Fokus-Anteil: {f['focus_quote']*100:.0f}%",
              fontsize=10, va="center")
     axh.text(0, 0.2,
              f"Deep-Work-Blöcke (≥25min): {f['deepwork_count']}    "

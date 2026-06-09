@@ -3,6 +3,7 @@
 # Kennzahlen ableiten: Fokus/Fragmentierung, App-Flapping (Doppelarbeit zwischen
 # zwei Tools), wiederkehrende Sequenzen (Automatisierungs-Kandidaten),
 # Tageszeit-Muster, geschätzte verlorene Zeit.
+import re
 from datetime import datetime, timedelta
 from collections import defaultdict, Counter
 
@@ -55,8 +56,57 @@ def _label_for_key(key, s):
     return s["domain"] or s["process"] or s["category"] or "Unbekannt"
 
 
-def build_segments(samples):
-    """Fasst aufeinanderfolgende, gleichartige Messungen zu Segmenten zusammen."""
+# ── Aufgaben-Erkennung ─────────────────────────────────────────────────
+# Mehrere Fenster gehören zur SELBEN Aufgabe, wenn im Fenstertitel dieselbe
+# "Schlagzeile" (z.B. Kundenname/Adresse) steht. Pro Seite/App kann in den
+# Einstellungen ein Abgleich-Muster (Regex) definiert werden, das den
+# Identifikator aus dem Titel zieht. Beispiel-Konfig (config.json):
+#   "task_matchers": [
+#     {"match": "verwaltung.mein-handwerker.de", "pattern": "Kunde:?\\s*([^|\\-–]+)"},
+#     {"match": "westnetz.de", "pattern": "([0-9]{5,})"}
+#   ]
+# Ohne Treffer wird wie bisher nach Domain/Programm gruppiert.
+def task_key(s, cfg):
+    if s["idle"]:
+        return "__idle__"
+    matchers = (cfg or {}).get("task_matchers", []) or []
+    title = s.get("title") or ""
+    dom = (s.get("domain") or "").lower()
+    proc = (s.get("process") or "").lower()
+    for m in matchers:
+        target = str(m.get("match") or "").strip().lower()
+        if not target:
+            continue
+        if target in dom or target in proc:
+            pat = m.get("pattern")
+            token = None
+            if pat:
+                try:
+                    mm = re.search(pat, title, re.IGNORECASE)
+                    if mm:
+                        token = mm.group(1) if mm.groups() else mm.group(0)
+                except re.error:
+                    token = None
+            else:
+                token = title  # kein Muster -> ganzer Titel als Identifikator
+            if token:
+                norm = re.sub(r"\s+", " ", token).strip().lower()
+                if norm:
+                    return "task:" + norm
+    return _activity_key(s)
+
+
+def task_label(key, s):
+    if key == "__idle__":
+        return "Abwesend"
+    if isinstance(key, str) and key.startswith("task:"):
+        return "🧩 " + key[5:].strip().title()
+    return _label_for_key(key, s)
+
+
+def build_segments(samples, cfg=None):
+    """Fasst aufeinanderfolgende Messungen DERSELBEN Aufgabe zu Segmenten zusammen."""
+    cfg = cfg or {}
     segs = []
     for s in samples:
         dur = float(s["duration"] or 0)
@@ -64,14 +114,14 @@ def build_segments(samples):
             continue
         if dur > 600:  # PC war aus / große Lücke -> kappen
             dur = 600
-        key = _activity_key(s)
+        key = task_key(s, cfg)
         if segs and segs[-1]["key"] == key:
             segs[-1]["dur"] += dur
             segs[-1]["end"] = s["ts"]
         else:
             segs.append({
                 "key": key,
-                "label": _label_for_key(key, s),
+                "label": task_label(key, s),
                 "app": s["process"] or "",
                 "domain": s["domain"] or "",
                 "category": "Abwesend" if s["idle"] else (s["category"] or "Unbekannt"),
@@ -83,8 +133,10 @@ def build_segments(samples):
     return segs
 
 
-def _focus_blocks(segments, idle_tolerance):
-    """Blöcke fokussierter Arbeit (gleiche Tätigkeit, kurze Pausen toleriert)."""
+def _focus_blocks(segments, idle_tolerance, pause_tolerance):
+    """Blöcke fokussierter Arbeit. Kurze Pausen (Idle) UND kurze Abstecher in eine
+    andere Tätigkeit (< pause_tolerance) brechen den Block nicht ab — die Aufgabe
+    wird pausiert und fortgesetzt, sobald sie wieder aktiv ist."""
     blocks = []
     cur = None  # {key, dur, start, end}
     for s in segments:
@@ -98,6 +150,8 @@ def _focus_blocks(segments, idle_tolerance):
         if cur and s["key"] == cur["key"]:
             cur["dur"] += s["dur"]
             cur["end"] = s["end"]
+        elif cur and s["dur"] < pause_tolerance:
+            continue  # kurzer Abstecher -> Pause, Block bleibt offen
         else:
             if cur:
                 blocks.append(cur)
@@ -106,6 +160,24 @@ def _focus_blocks(segments, idle_tolerance):
     if cur:
         blocks.append(cur)
     return blocks
+
+
+def _task_stream(active_segs, pause_tolerance):
+    """Aufgaben-Folge für Wechsel/Flapping/Sequenzen: kurze Abstecher, die von
+    DERSELBEN Aufgabe umschlossen sind, werden entfernt (Pause statt Wechsel)."""
+    filtered = []
+    for idx, s in enumerate(active_segs):
+        if filtered and s["dur"] < pause_tolerance and s["key"] != filtered[-1]["key"]:
+            nxt = active_segs[idx + 1]["key"] if idx + 1 < len(active_segs) else None
+            if filtered[-1]["key"] == nxt:
+                continue  # eingeschlossener kurzer Abstecher -> überspringen
+        filtered.append(s)
+    active_keys, visits = [], defaultdict(int)
+    for s in filtered:
+        if not active_keys or active_keys[-1] != s["key"]:
+            active_keys.append(s["key"])
+            visits[s["key"]] += 1
+    return active_keys, visits
 
 
 def _flapping(active_keys, labels, durs):
@@ -171,6 +243,7 @@ def _key_count(keys, k):
 def analyze(samples, cfg=None):
     cfg = cfg or {}
     idle_tol = float(cfg.get("idle_tolerance", 120))
+    pause_tol = float(cfg.get("pause_tolerance", 90))
     focus_min = float(cfg.get("focus_min_minutes", 15)) * 60
     deep_min = float(cfg.get("deepwork_min_minutes", 25)) * 60
     penalty = float(cfg.get("switch_penalty", 45))
@@ -181,11 +254,9 @@ def analyze(samples, cfg=None):
     by_domain = defaultdict(float)
     by_level = defaultdict(float)
     hourly_level = defaultdict(lambda: defaultdict(float))  # stunde -> level -> sek
-    visits = defaultdict(int)
     interruptions = 0
 
     prev_level = None
-    last_key = None
     for s in samples:
         dur = float(s["duration"] or 0)
         if dur <= 0:
@@ -198,7 +269,6 @@ def analyze(samples, cfg=None):
             if prev_level == "produktiv":
                 interruptions += 1
             prev_level = "idle"
-            key = "__idle__"
         else:
             active += dur
             cat = s["category"] or "Unbekannt"
@@ -213,26 +283,21 @@ def analyze(samples, cfg=None):
             if prev_level == "produktiv" and lvl == "ablenkung":
                 interruptions += 1
             prev_level = lvl
-            key = _activity_key(s)
-        if key != last_key:
-            visits[key] += 1
-            last_key = key
 
-    # Segmente + Sequenzen
-    segments = build_segments(samples)
+    # Segmente nach Aufgabe (mehrere Fenster derselben Aufgabe = 1 Segment)
+    segments = build_segments(samples, cfg)
     active_segs = [s for s in segments if not s["idle"]]
-    # benachbarte gleiche Keys (durch Idle getrennt) zusammenfassen
-    active_keys = []
     labels = {}
     seg_durs = defaultdict(float)
     for s in active_segs:
         labels[s["key"]] = s["label"]
         seg_durs[s["key"]] += s["dur"]
-        if not active_keys or active_keys[-1] != s["key"]:
-            active_keys.append(s["key"])
+    # Aufgaben-Folge mit Pause/Resume (kurze Abstecher entfernt)
+    active_keys, visits = _task_stream(active_segs, pause_tol)
     switches = max(0, len(active_keys) - 1)
+    task_count = len([k for k in seg_durs if k != "__idle__"])
 
-    blocks = _focus_blocks(segments, idle_tol)
+    blocks = _focus_blocks(segments, idle_tol, pause_tol)
     focus_blocks = [b for b in blocks if b["dur"] >= focus_min]
     deepwork = [b for b in blocks if b["dur"] >= deep_min]
     focus_time = sum(b["dur"] for b in focus_blocks)
@@ -254,8 +319,14 @@ def analyze(samples, cfg=None):
 
     lost = min(switches * penalty, 0.30 * active)
 
+    tasks = sorted(
+        ({"label": labels.get(k, k), "duration": d, "visits": visits.get(k, 1)}
+         for k, d in seg_durs.items() if k != "__idle__"),
+        key=lambda x: -x["duration"])[:12]
+
     return {
         "total": total, "active": active, "idle": idle, "switches": switches,
+        "task_count": task_count, "tasks": tasks,
         "by_category": dict(sorted(by_category.items(), key=lambda x: -x[1])),
         "by_app": dict(sorted(by_app.items(), key=lambda x: -x[1])),
         "by_domain": dict(sorted(by_domain.items(), key=lambda x: -x[1])),
