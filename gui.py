@@ -336,7 +336,15 @@ class App:
                 if updater.apply_update():
                     messagebox.showinfo("Update", "Update wird installiert — die App startet "
                                                   "gleich neu.")
-                    self._quit()
+                    # Prozess hart beenden, damit die .exe SOFORT freigegeben wird und der
+                    # Updater sie austauschen kann. root.destroy() reicht nicht zuverlaessig
+                    # (Tk-/Tray-Teardown kann den Prozess am Leben halten -> Updater haengt).
+                    try:
+                        if self._tray:
+                            self._tray.stop()
+                    except Exception:
+                        pass
+                    os._exit(0)
             except Exception as e:
                 messagebox.showerror("Update fehlgeschlagen",
                                      f"{e}\n\nDu kannst die neue Version auch manuell laden.")

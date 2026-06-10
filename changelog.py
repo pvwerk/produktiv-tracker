@@ -1,5 +1,13 @@
 # changelog.py — Änderungsverlauf, im Tool unter „🆕 Was ist neu" lesbar.
 CHANGELOG = """\
+Version 3 — Update-Fix
+
+BEHOBEN
+• Update bleibt nicht mehr bei „Update wird installiert — die App startet gleich
+  neu" hängen. Die App beendet sich jetzt sofort sauber, der Austausch läuft
+  zuverlässig im Hintergrund (kein schwarzes Fenster mehr).
+
+
 Version 2 — Aufgaben-Erkennung & Pause/Resume
 
 NEU

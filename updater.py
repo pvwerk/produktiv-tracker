@@ -72,17 +72,22 @@ def apply_update():
         f.write(
             "@echo off\r\n"
             "timeout /t 1 /nobreak >nul\r\n"
+            # Alte Instanz aktiv beenden, dann warten bis sie wirklich weg ist.
+            # taskkill als Sicherheitsnetz, falls sich die App nicht selbst beendet
+            # (sonst kann die laufende .exe nicht ersetzt werden -> Updater haengt).
+            f'taskkill /f /im "{name}" >nul 2>&1\r\n'
             ":loop\r\n"
-            f'tasklist /fi "imagename eq {name}" | find /i "{name}" >nul && '
-            "(timeout /t 1 /nobreak >nul & goto loop)\r\n"
+            f'tasklist /fi "imagename eq {name}" | find /i "{name}" >nul 2>&1 && '
+            f'(timeout /t 1 /nobreak >nul & taskkill /f /im "{name}" >nul 2>&1 & goto loop)\r\n'
             f'move /y "{new_path}" "{exe_path}" >nul\r\n'
             f'start "" "{exe_path}"\r\n'
             'del "%~f0"\r\n'
         )
-    DETACHED = 0x00000008
-    NEW_GROUP = 0x00000200
+    # CREATE_NO_WINDOW: Batch laeuft versteckt (kein schwarzes Fenster). Nicht mit
+    # DETACHED_PROCESS kombinieren -> sonst erscheint doch ein Konsolenfenster.
     NO_WINDOW = 0x08000000
+    NEW_GROUP = 0x00000200
     subprocess.Popen(["cmd", "/c", bat],
-                     creationflags=DETACHED | NEW_GROUP | NO_WINDOW,
+                     creationflags=NO_WINDOW | NEW_GROUP,
                      close_fds=True)
     return True
