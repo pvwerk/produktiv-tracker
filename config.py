@@ -76,6 +76,9 @@ DEFAULT_STORE_TITLES = True
 # = Identifikator). In den Einstellungen des Tools pflegbar.
 DEFAULT_TASK_MATCHERS = []  # z.B. [{"match":"verwaltung.mein-handwerker.de","pattern":"Kunde:?\\s*([^|\\-–]+)"}]
 
+# Autostart: Tool startet automatisch mit der Windows-Anmeldung
+DEFAULT_AUTOSTART = True
+
 
 def data_dir():
     base = os.environ.get("LOCALAPPDATA") or os.path.expanduser("~")
@@ -125,6 +128,7 @@ def load_config():
         "switch_penalty": DEFAULT_SWITCH_PENALTY,
         "store_window_titles": DEFAULT_STORE_TITLES,
         "task_matchers": DEFAULT_TASK_MATCHERS,
+        "autostart": DEFAULT_AUTOSTART,
     }
     if os.path.exists(path):
         try:
@@ -142,3 +146,13 @@ def load_config():
         except Exception:
             pass
     return cfg
+
+
+def save_config(cfg):
+    """Schreibt die config.json. True bei Erfolg."""
+    try:
+        with open(config_path(), "w", encoding="utf-8") as f:
+            json.dump(cfg, f, ensure_ascii=False, indent=2)
+        return True
+    except Exception:
+        return False

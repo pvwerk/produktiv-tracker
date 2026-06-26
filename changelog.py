@@ -1,5 +1,16 @@
 # changelog.py — Änderungsverlauf, im Tool unter „🆕 Was ist neu" lesbar.
 CHANGELOG = """\
+Version 4 — Autostart
+
+NEU
+• Das Tool startet jetzt automatisch mit Windows (bei der Anmeldung).
+• Über den Knopf „🚀 Autostart: An/Aus" unten lässt sich das jederzeit
+  ein- oder ausschalten.
+
+BEHOBEN
+• Speichern der Aufgaben-Erkennungs-Regeln konnte fehlschlagen — behoben.
+
+
 Version 3 — Update-Fix
 
 BEHOBEN

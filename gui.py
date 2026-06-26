@@ -3,6 +3,7 @@ import os
 import sys
 import subprocess
 import threading
+import json
 from datetime import datetime, timedelta
 
 import tkinter as tk
@@ -17,6 +18,7 @@ import analysis
 import charts
 import report
 import updater
+import autostart
 from sampler import Tracker
 from ki_prompt import build_ki_prompt
 
@@ -37,6 +39,11 @@ class App:
     def __init__(self):
         storage.init_db()
         self.cfg = config.load_config()
+        # Autostart-Registry an die Einstellung angleichen (nur installierte .exe)
+        try:
+            autostart.sync(self.cfg.get("autostart", True))
+        except Exception:
+            pass
         self.tracker = Tracker()
         self.A = None
         self.root = tk.Tk()
@@ -112,6 +119,8 @@ class App:
         tk.Button(foot, text="ℹ Datenschutz", command=self._privacy).pack(side="left", padx=3)
         tk.Button(foot, text="🗑 Daten löschen", command=self._delete_data).pack(side="left", padx=3)
         tk.Button(foot, text="🆕 Was ist neu", command=self._changelog).pack(side="left", padx=3)
+        self.autostart_btn = tk.Button(foot, text=self._autostart_label(), command=self._toggle_autostart)
+        self.autostart_btn.pack(side="left", padx=3)
         tk.Button(foot, text="⤓ Update", command=lambda: self._check_update(silent=False)).pack(side="left", padx=3)
         tk.Button(foot, text="Beenden", command=self._quit).pack(side="right")
 
@@ -441,6 +450,28 @@ class App:
             except Exception:
                 pass
         self.root.destroy()
+
+    def _autostart_label(self):
+        return "🚀 Autostart: An" if self.cfg.get("autostart", True) else "🚀 Autostart: Aus"
+
+    def _toggle_autostart(self):
+        new = not bool(self.cfg.get("autostart", True))
+        self.cfg["autostart"] = new
+        config.save_config(self.cfg)
+        ok = autostart.sync(new)
+        try:
+            self.autostart_btn.config(text=self._autostart_label())
+        except Exception:
+            pass
+        if not autostart.is_frozen():
+            messagebox.showinfo("Autostart",
+                                "Einstellung gespeichert. Der Autostart wirkt nur in der installierten App (.exe).")
+        elif new and not ok:
+            messagebox.showwarning("Autostart", "Autostart konnte nicht eingerichtet werden.")
+        elif new:
+            messagebox.showinfo("Autostart", "Das Tool startet künftig automatisch mit Windows.")
+        else:
+            messagebox.showinfo("Autostart", "Der Autostart wurde deaktiviert.")
 
     def run(self):
         self.root.mainloop()
