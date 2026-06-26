@@ -71,6 +71,26 @@ def card(parent, padx=0, pady=0, **kw):
                     highlightcolor=COLORS["border"], highlightthickness=1, bd=0, **kw)
 
 
+def entry(parent, **kw):
+    return tk.Entry(parent, relief="flat", bg="white", fg=COLORS["text"],
+                    highlightthickness=1, highlightbackground=COLORS["border"],
+                    highlightcolor=COLORS["primary"], insertbackground=COLORS["text"], **kw)
+
+
+def dialog(win):
+    """Toplevel-Hintergrund auf Surface setzen."""
+    win.configure(bg=COLORS["surface"])
+    return win
+
+
+def dialog_header(parent, text):
+    h = tk.Frame(parent, bg=COLORS["navy"])
+    h.pack(fill="x")
+    tk.Label(h, text=text, bg=COLORS["navy"], fg=COLORS["on_dark"], font=F_H2).pack(
+        side="left", padx=16, pady=11)
+    return h
+
+
 def label(parent, text, on="bg", kind="body", **kw):
     bg = COLORS["surface"] if on == "surface" else (COLORS["navy"] if on == "navy" else COLORS["bg"])
     fg = {"body": COLORS["text"], "muted": COLORS["muted"], "h1": COLORS["text"],

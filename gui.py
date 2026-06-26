@@ -306,13 +306,16 @@ class App:
             text = changelog.CHANGELOG
         except Exception:
             text = "Kein Änderungsverlauf verfügbar."
-        win = tk.Toplevel(self.root)
+        C = theme.COLORS
+        win = theme.dialog(tk.Toplevel(self.root))
         win.title("Was ist neu?")
         win.geometry("560x520")
-        tk.Label(win, text="🆕 Änderungsverlauf", font=("Segoe UI", 13, "bold")).pack(padx=14, pady=(12, 6), anchor="w")
-        frame = tk.Frame(win); frame.pack(fill="both", expand=True, padx=14, pady=(0, 12))
+        theme.dialog_header(win, "🆕 Änderungsverlauf")
+        frame = tk.Frame(win, bg=C["surface"]); frame.pack(fill="both", expand=True, padx=14, pady=12)
         sb = tk.Scrollbar(frame); sb.pack(side="right", fill="y")
-        txt = tk.Text(frame, wrap="word", font=("Segoe UI", 10), yscrollcommand=sb.set)
+        txt = tk.Text(frame, wrap="word", font=theme.F_BODY, yscrollcommand=sb.set,
+                      bg="white", fg=C["text"], relief="flat",
+                      highlightthickness=1, highlightbackground=C["border"], padx=10, pady=8)
         txt.insert("1.0", text); txt.config(state="disabled")
         txt.pack(side="left", fill="both", expand=True); sb.config(command=txt.yview)
 
@@ -504,28 +507,37 @@ class ManualDialog(tk.Toplevel):
         self.cfg = cfg
         self.on_saved = on_saved
         self.resizable(False, False)
+        theme.dialog(self)
+        C = theme.COLORS
+        theme.dialog_header(self, "➕ Offline-Tätigkeit nachtragen")
+        body = tk.Frame(self, bg=C["surface"]); body.pack(fill="both", padx=18, pady=14)
         cats = sorted(set(list(cfg.get("process_categories", {}).values()) +
                           list(cfg.get("domain_categories", {}).values()) +
                           ["Telefonie (AGFEO)", "E-Mail", "Office", "Besprechung"]))
-        pad = {"padx": 10, "pady": 4}
-        tk.Label(self, text="Kategorie").grid(row=0, column=0, sticky="w", **pad)
-        self.cat = ttk.Combobox(self, values=cats, state="readonly", width=24)
+        pad = {"padx": 8, "pady": 6}
+
+        def lab(r, t):
+            tk.Label(body, text=t, bg=C["surface"], fg=C["muted"], font=theme.F_BODY).grid(
+                row=r, column=0, sticky="w", **pad)
+
+        lab(0, "Kategorie")
+        self.cat = ttk.Combobox(body, values=cats, state="readonly", width=24)
         self.cat.set("Besprechung")
         self.cat.grid(row=0, column=1, **pad)
-        tk.Label(self, text="Datum (TT.MM.JJJJ)").grid(row=1, column=0, sticky="w", **pad)
-        self.date = tk.Entry(self, width=26)
+        lab(1, "Datum (TT.MM.JJJJ)")
+        self.date = theme.entry(body, width=26)
         self.date.insert(0, datetime.now().strftime("%d.%m.%Y"))
         self.date.grid(row=1, column=1, **pad)
-        tk.Label(self, text="Startzeit (HH:MM)").grid(row=2, column=0, sticky="w", **pad)
-        self.time = tk.Entry(self, width=26)
+        lab(2, "Startzeit (HH:MM)")
+        self.time = theme.entry(body, width=26)
         self.time.insert(0, datetime.now().strftime("%H:%M"))
         self.time.grid(row=2, column=1, **pad)
-        tk.Label(self, text="Dauer (Minuten)").grid(row=3, column=0, sticky="w", **pad)
-        self.mins = tk.Entry(self, width=26)
+        lab(3, "Dauer (Minuten)")
+        self.mins = theme.entry(body, width=26)
         self.mins.insert(0, "30")
         self.mins.grid(row=3, column=1, **pad)
-        tk.Button(self, text="Speichern", command=self._save, bg="#16a34a", fg="white",
-                  relief="flat", padx=12, pady=4).grid(row=4, column=0, columnspan=2, pady=10)
+        theme.button(body, "Speichern", self._save, kind="success").grid(
+            row=4, column=0, columnspan=2, pady=(12, 2))
 
     def _save(self):
         try:
@@ -557,9 +569,10 @@ class TaskMatcherDialog(tk.Toplevel):
         self.on_saved = on_saved
         self.cfg = config.load_config()
         self.rows = []  # (frame, match_entry, pattern_entry)
-
-        tk.Label(self, text="🧩 Aufgaben-Erkennung", font=("Segoe UI", 13, "bold")).pack(anchor="w", padx=14, pady=(12, 2))
-        tk.Label(self, justify="left", font=("Segoe UI", 9), fg="#475569", wraplength=680, text=(
+        theme.dialog(self)
+        C = theme.COLORS
+        theme.dialog_header(self, "🧩 Aufgaben-Erkennung")
+        tk.Label(self, justify="left", font=theme.F_SMALL, bg=C["surface"], fg=C["muted"], wraplength=680, text=(
             "Mehrere Fenster zählen als EINE Aufgabe, wenn im Fenstertitel dieselbe „Schlagzeile\" steht "
             "(z. B. Kundenname oder Adresse). Lege je Seite/Programm fest, welcher Teil des Titels der "
             "Identifikator ist.\n\n"
@@ -568,38 +581,44 @@ class TaskMatcherDialog(tk.Toplevel):
             "  Beispiele:  Kunde:?\\s*([^|\\-–]+)   ·   ([0-9]{5,})   ·   ^([^|\\-–]+)")
         ).pack(anchor="w", padx=14)
 
-        # Scrollbarer Bereich für die Regeln
-        self.list_frame = tk.Frame(self)
+        # Bereich für die Regeln
+        self.list_frame = tk.Frame(self, bg=C["surface"])
         self.list_frame.pack(fill="both", expand=True, padx=14, pady=8)
-        head = tk.Frame(self.list_frame); head.pack(fill="x")
-        tk.Label(head, text="Seite / App", width=30, anchor="w", font=("Segoe UI", 9, "bold")).pack(side="left")
-        tk.Label(head, text="Muster (Regex, Gruppe 1)", anchor="w", font=("Segoe UI", 9, "bold")).pack(side="left")
+        head = tk.Frame(self.list_frame, bg=C["surface"]); head.pack(fill="x")
+        tk.Label(head, text="Seite / App", width=30, anchor="w", bg=C["surface"], fg=C["text"],
+                 font=(theme.FONT, 9, "bold")).pack(side="left")
+        tk.Label(head, text="Muster (Regex, Gruppe 1)", anchor="w", bg=C["surface"], fg=C["text"],
+                 font=(theme.FONT, 9, "bold")).pack(side="left")
 
         for m in (self.cfg.get("task_matchers") or []):
             self._add_row(m.get("match", ""), m.get("pattern", ""))
         if not (self.cfg.get("task_matchers") or []):
             self._add_row("", "")
 
-        tk.Button(self, text="+ Regel hinzufügen", command=lambda: self._add_row("", "")).pack(anchor="w", padx=14)
+        theme.button(self, "+ Regel hinzufügen", lambda: self._add_row("", ""),
+                     kind="secondary", compact=True).pack(anchor="w", padx=14)
 
         # Test
-        test = tk.LabelFrame(self, text="Test", padx=8, pady=6)
+        test = tk.Frame(self, bg=C["surface"], highlightbackground=C["border"], highlightthickness=1)
         test.pack(fill="x", padx=14, pady=8)
-        tk.Label(test, text="Fenstertitel zum Testen:").pack(anchor="w")
-        self.test_in = tk.Entry(test); self.test_in.pack(fill="x")
-        tk.Button(test, text="Identifikator anzeigen", command=self._test).pack(anchor="w", pady=4)
-        self.test_out = tk.Label(test, text="", fg="#1B3A6B", font=("Segoe UI", 10, "bold"))
-        self.test_out.pack(anchor="w")
+        tk.Label(test, text="Test", bg=C["surface"], fg=C["navy"], font=theme.F_H2).pack(anchor="w", padx=10, pady=(8, 2))
+        tk.Label(test, text="Fenstertitel zum Testen:", bg=C["surface"], fg=C["muted"],
+                 font=theme.F_SMALL).pack(anchor="w", padx=10)
+        self.test_in = theme.entry(test); self.test_in.pack(fill="x", padx=10, pady=(2, 4))
+        theme.button(test, "Identifikator anzeigen", self._test, kind="secondary", compact=True).pack(anchor="w", padx=10, pady=2)
+        self.test_out = tk.Label(test, text="", bg=C["surface"], fg=C["navy"], font=(theme.FONT, 10, "bold"))
+        self.test_out.pack(anchor="w", padx=10, pady=(2, 8))
 
-        bar = tk.Frame(self); bar.pack(fill="x", padx=14, pady=(0, 12))
-        tk.Button(bar, text="Abbrechen", command=self.destroy).pack(side="right", padx=4)
-        tk.Button(bar, text="Speichern", command=self._save, bg="#16a34a", fg="white", relief="flat", padx=14, pady=4).pack(side="right")
+        bar = tk.Frame(self, bg=C["surface"]); bar.pack(fill="x", padx=14, pady=(0, 12))
+        theme.button(bar, "Speichern", self._save, kind="success").pack(side="right")
+        theme.button(bar, "Abbrechen", self.destroy, kind="secondary").pack(side="right", padx=6)
 
     def _add_row(self, match, pattern):
-        f = tk.Frame(self.list_frame); f.pack(fill="x", pady=2)
-        me = tk.Entry(f, width=30); me.insert(0, match); me.pack(side="left")
-        pe = tk.Entry(f); pe.insert(0, pattern); pe.pack(side="left", fill="x", expand=True, padx=(4, 4))
-        btn = tk.Button(f, text="✕", command=lambda: (f.destroy(), self.rows.remove(entry)))
+        C = theme.COLORS
+        f = tk.Frame(self.list_frame, bg=C["surface"]); f.pack(fill="x", pady=2)
+        me = theme.entry(f, width=30); me.insert(0, match); me.pack(side="left")
+        pe = theme.entry(f); pe.insert(0, pattern); pe.pack(side="left", fill="x", expand=True, padx=(4, 4))
+        btn = theme.button(f, "✕", lambda: (f.destroy(), self.rows.remove(entry)), kind="danger", compact=True)
         btn.pack(side="left")
         entry = (f, me, pe)
         self.rows.append(entry)
@@ -623,12 +642,12 @@ class TaskMatcherDialog(tk.Toplevel):
                     if r:
                         tok = r.group(1) if r.groups() else r.group(0)
                         tok = re.sub(r"\s+", " ", tok).strip()
-                        self.test_out.config(text="„" + mm["match"] + "\"  →  Aufgabe: " + tok, fg="#16a34a")
+                        self.test_out.config(text="„" + mm["match"] + "\"  →  Aufgabe: " + tok, fg=theme.COLORS["success"])
                         return
             except re.error as e:
-                self.test_out.config(text=f"Ungültiges Muster bei „{mm['match']}\": {e}", fg="#ef4444")
+                self.test_out.config(text=f"Ungültiges Muster bei „{mm['match']}\": {e}", fg=theme.COLORS["danger"])
                 return
-        self.test_out.config(text="Kein Treffer (kein Muster passt / greift).", fg="#9ca3af")
+        self.test_out.config(text="Kein Treffer (kein Muster passt / greift).", fg=theme.COLORS["subtle"])
 
     def _save(self):
         import json
