@@ -2,10 +2,10 @@
 from analysis import fmt_dur
 from config import LEVEL_COLORS
 
-BLUE = "#2563eb"
-GREEN = "#16a34a"
-RED = "#ef4444"
-GREY = "#9ca3af"
+BLUE = "#0284c7"   # sky-600 (CRM-Primärfarbe)
+GREEN = "#059669"  # emerald-600
+RED = "#dc2626"    # red-600
+GREY = "#94a3b8"   # slate-400
 
 
 def _short(s, n=30):

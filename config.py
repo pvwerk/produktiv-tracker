@@ -59,8 +59,8 @@ DEFAULT_PRODUCTIVITY_LEVELS = {
     "Privat/Ablenkung": "ablenkung",
 }
 
-LEVEL_COLORS = {"produktiv": "#16a34a", "neutral": "#3b82f6", "ablenkung": "#ef4444",
-                "Abwesend": "#9ca3af"}
+LEVEL_COLORS = {"produktiv": "#059669", "neutral": "#0284c7", "ablenkung": "#ef4444",
+                "Abwesend": "#94a3b8"}
 
 # Fokus-/Auswertungs-Parameter (in Minuten bzw. Sekunden)
 DEFAULT_FOCUS_MIN_MINUTES = 15      # ab hier gilt ein ununterbrochener Block als "Fokus"

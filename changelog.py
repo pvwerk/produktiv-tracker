@@ -1,5 +1,13 @@
 # changelog.py — Änderungsverlauf, im Tool unter „🆕 Was ist neu" lesbar.
 CHANGELOG = """\
+Version 5 — Neues Design
+
+NEU
+• Frische Optik im PVWERK-Stil: Marken-Header, klare Karten, einheitliche
+  Buttons (Blau = Aktion, Grün = Start, Rot = Stopp/Löschen) und abgestimmte
+  Diagramm-Farben.
+
+
 Version 4 — Autostart
 
 NEU

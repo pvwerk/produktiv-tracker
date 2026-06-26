@@ -19,6 +19,7 @@ import charts
 import report
 import updater
 import autostart
+import theme
 from sampler import Tracker
 from ki_prompt import build_ki_prompt
 
@@ -48,8 +49,9 @@ class App:
         self.A = None
         self.root = tk.Tk()
         self.root.title(config.APP_TITLE)
-        self.root.geometry("980x760")
-        self.root.minsize(860, 640)
+        self.root.geometry("1020x780")
+        self.root.minsize(900, 660)
+        theme.apply(self.root)
         self._tray = None
         self._tick = 0
         self._build()
@@ -61,36 +63,41 @@ class App:
 
     # ---------- UI ----------
     def _build(self):
-        head = tk.Frame(self.root, bg="#0f172a")
+        C = theme.COLORS
+        # ---------- Header (Marken-Navy) ----------
+        head = tk.Frame(self.root, bg=C["navy"])
         head.pack(fill="x")
-        tk.Label(head, text="📊  " + config.APP_TITLE, bg="#0f172a", fg="white",
-                 font=("Segoe UI", 15, "bold")).pack(side="left", padx=14, pady=9)
+        tk.Label(head, text="📊  " + config.APP_TITLE, bg=C["navy"], fg=C["on_dark"],
+                 font=theme.F_H1).pack(side="left", padx=16, pady=13)
         tk.Label(head, text="Alle Daten bleiben nur auf diesem PC · nur du siehst sie",
-                 bg="#0f172a", fg="#94a3b8", font=("Segoe UI", 9)).pack(side="right", padx=14)
+                 bg=C["navy"], fg=C["on_dark_muted"], font=theme.F_SMALL).pack(side="right", padx=16)
 
-        ctrl = tk.Frame(self.root)
-        ctrl.pack(fill="x", padx=12, pady=8)
-        self.btn = tk.Button(ctrl, text="▶  Tracking starten", font=("Segoe UI", 11, "bold"),
-                             bg="#16a34a", fg="white", activebackground="#15803d",
-                             relief="flat", padx=14, pady=8, command=self._toggle)
+        # ---------- Steuerleiste (Karte) ----------
+        wrap = tk.Frame(self.root, bg=C["bg"])
+        wrap.pack(fill="x", padx=12, pady=(12, 4))
+        ctrl = theme.card(wrap)
+        ctrl.pack(fill="x")
+        inner = tk.Frame(ctrl, bg=C["surface"])
+        inner.pack(fill="x", padx=12, pady=10)
+        self.btn = theme.button(inner, "▶  Tracking starten", self._toggle, kind="success")
         self.btn.pack(side="left")
-        self.status = tk.Label(ctrl, text="gestoppt", font=("Segoe UI", 10), fg="#64748b")
-        self.status.pack(side="left", padx=12)
-        tk.Label(ctrl, text="Zeitraum:").pack(side="left", padx=(12, 2))
-        self.period = ttk.Combobox(ctrl, values=["Heute", "Gestern", "Letzte 7 Tage"],
+        self.status = tk.Label(inner, text="gestoppt", font=theme.F_BODY, fg=C["muted"], bg=C["surface"])
+        self.status.pack(side="left", padx=14)
+        tk.Label(inner, text="Zeitraum", font=theme.F_SMALL, fg=C["muted"], bg=C["surface"]).pack(side="left", padx=(12, 4))
+        self.period = ttk.Combobox(inner, values=["Heute", "Gestern", "Letzte 7 Tage"],
                                    state="readonly", width=13)
         self.period.set("Heute")
         self.period.pack(side="left")
         self.period.bind("<<ComboboxSelected>>", lambda e: self._recompute())
-        tk.Button(ctrl, text="↻", command=self._recompute, width=3).pack(side="left", padx=4)
+        theme.button(inner, "↻", self._recompute, kind="secondary", width=2, compact=True).pack(side="left", padx=6)
 
-        self.lbl_now = tk.Label(self.root, text="Jetzt: —", font=("Segoe UI", 10),
-                                anchor="w", fg="#334155")
-        self.lbl_now.pack(fill="x", padx=14)
+        self.lbl_now = tk.Label(self.root, text="Jetzt: —", font=theme.F_BODY, anchor="w",
+                                fg=C["text"], bg=C["bg"])
+        self.lbl_now.pack(fill="x", padx=16, pady=(2, 2))
 
-        # Tabs mit eingebetteten Diagrammen
+        # ---------- Tabs mit eingebetteten Diagrammen ----------
         self.nb = ttk.Notebook(self.root)
-        self.nb.pack(fill="both", expand=True, padx=12, pady=8)
+        self.nb.pack(fill="both", expand=True, padx=12, pady=6)
         self.tabs = {}
         for name, draw in [
             ("Übersicht", charts.draw_overview),
@@ -102,27 +109,36 @@ class App:
             frame = tk.Frame(self.nb, bg="white")
             self.nb.add(frame, text=name)
             fig = Figure(figsize=(8, 5), dpi=100)
+            fig.patch.set_facecolor("white")
             canvas = FigureCanvasTkAgg(fig, master=frame)
             canvas.get_tk_widget().pack(fill="both", expand=True)
             self.tabs[name] = {"fig": fig, "canvas": canvas, "draw": draw}
         self.nb.bind("<<NotebookTabChanged>>", lambda e: self._redraw_current())
 
-        # Export / Aktionen
-        foot = tk.Frame(self.root)
-        foot.pack(fill="x", padx=12, pady=(0, 10))
-        tk.Button(foot, text="📄 PDF-Bericht", command=self._pdf).pack(side="left", padx=3)
-        tk.Button(foot, text="📑 CSV", command=self._csv).pack(side="left", padx=3)
-        tk.Button(foot, text="🤖 Für KI exportieren", command=self._ki).pack(side="left", padx=3)
-        tk.Button(foot, text="➕ Offline nachtragen", command=self._manual).pack(side="left", padx=3)
-        tk.Button(foot, text="🧩 Aufgaben-Erkennung", command=self._task_matchers).pack(side="left", padx=3)
-        tk.Button(foot, text="⚙ Einstellungen", command=self._settings).pack(side="left", padx=3)
-        tk.Button(foot, text="ℹ Datenschutz", command=self._privacy).pack(side="left", padx=3)
-        tk.Button(foot, text="🗑 Daten löschen", command=self._delete_data).pack(side="left", padx=3)
-        tk.Button(foot, text="🆕 Was ist neu", command=self._changelog).pack(side="left", padx=3)
-        self.autostart_btn = tk.Button(foot, text=self._autostart_label(), command=self._toggle_autostart)
+        # ---------- Footer (zwei Reihen) ----------
+        foot = tk.Frame(self.root, bg=C["bg"])
+        foot.pack(fill="x", padx=12, pady=(2, 12))
+        row1 = tk.Frame(foot, bg=C["bg"]); row1.pack(fill="x", pady=(0, 4))
+        row2 = tk.Frame(foot, bg=C["bg"]); row2.pack(fill="x")
+
+        def fb(parent, text, cmd, kind="secondary", side="left"):
+            theme.button(parent, text, cmd, kind=kind, compact=True).pack(side=side, padx=3)
+
+        fb(row1, "📄 PDF-Bericht", self._pdf)
+        fb(row1, "📑 CSV", self._csv)
+        fb(row1, "🤖 Für KI exportieren", self._ki)
+        fb(row1, "➕ Offline nachtragen", self._manual)
+        fb(row1, "🧩 Aufgaben-Erkennung", self._task_matchers)
+        fb(row1, "⚙ Einstellungen", self._settings)
+
+        fb(row2, "ℹ Datenschutz", self._privacy)
+        fb(row2, "🆕 Was ist neu", self._changelog)
+        self.autostart_btn = theme.button(row2, self._autostart_label(), self._toggle_autostart,
+                                           kind="secondary", compact=True)
         self.autostart_btn.pack(side="left", padx=3)
-        tk.Button(foot, text="⤓ Update", command=lambda: self._check_update(silent=False)).pack(side="left", padx=3)
-        tk.Button(foot, text="Beenden", command=self._quit).pack(side="right")
+        fb(row2, "🗑 Daten löschen", self._delete_data, kind="danger")
+        fb(row2, "Beenden", self._quit, side="right")
+        fb(row2, "⤓ Update", lambda: self._check_update(silent=False), kind="primary", side="right")
 
     # ---------- Daten ----------
     def _bounds(self):
@@ -191,12 +207,12 @@ class App:
     def _toggle(self):
         if self.tracker.running:
             self.tracker.stop()
-            self.btn.config(text="▶  Tracking starten", bg="#16a34a", activebackground="#15803d")
-            self.status.config(text="gestoppt", fg="#64748b")
+            theme.set_kind(self.btn, "success", text="▶  Tracking starten")
+            self.status.config(text="gestoppt", fg=theme.COLORS["muted"])
         else:
             self.tracker.start()
-            self.btn.config(text="⏸  Tracking stoppen", bg="#dc2626", activebackground="#b91c1c")
-            self.status.config(text="läuft …", fg="#16a34a")
+            theme.set_kind(self.btn, "danger", text="⏸  Tracking stoppen")
+            self.status.config(text="läuft …", fg=theme.COLORS["success"])
 
     def _loop(self):
         # Live-Zeile schnell, Neuberechnung der Diagramme alle ~12 s
@@ -361,13 +377,15 @@ class App:
     def _maybe_consent(self):
         if config.has_consent():
             return
-        win = tk.Toplevel(self.root)
+        C = theme.COLORS
+        win = tk.Toplevel(self.root, bg=C["surface"])
         win.title("Willkommen — kurz zur Einordnung")
         win.transient(self.root)
         win.grab_set()
         win.resizable(False, False)
-        tk.Label(win, text="Dein persönliches Auswertungs-Tool", font=("Segoe UI", 13, "bold")
-                 ).pack(padx=20, pady=(16, 6))
+        hdr = tk.Frame(win, bg=C["navy"]); hdr.pack(fill="x")
+        tk.Label(hdr, text="Dein persönliches Auswertungs-Tool", bg=C["navy"], fg=C["on_dark"],
+                 font=theme.F_H2).pack(padx=20, pady=12)
         msg = ("Dieses Tool hilft DIR, deinen eigenen Arbeitstag am PC zu verstehen und\n"
                "Abläufe zu verbessern. Du startest und stoppst selbst.\n\n"
                "• Alle Daten bleiben NUR auf diesem PC — nichts geht ins Internet.\n"
@@ -375,10 +393,12 @@ class App:
                "• Nur Hauptadresse (z. B. www.westnetz.de), nicht der volle Link.\n"
                "• Nur du siehst die Auswertung. Keine Leistungsbewertung.\n"
                "• Du kannst die Daten jederzeit löschen.")
-        tk.Label(win, text=msg, justify="left", font=("Segoe UI", 10)).pack(padx=20, pady=6)
+        tk.Label(win, text=msg, justify="left", font=theme.F_BODY, bg=C["surface"], fg=C["text"]
+                 ).pack(padx=22, pady=(14, 6))
         var = tk.IntVar(value=0)
         tk.Checkbutton(win, text="Ich nutze das Tool freiwillig zur eigenen Auswertung.",
-                       variable=var, font=("Segoe UI", 10)).pack(padx=20, pady=(2, 4))
+                       variable=var, font=theme.F_BODY, bg=C["surface"], fg=C["text"],
+                       activebackground=C["surface"], selectcolor=C["surface"]).pack(padx=22, pady=(2, 6))
 
         def accept():
             if not var.get():
@@ -387,9 +407,7 @@ class App:
             config.set_consent()
             win.destroy()
 
-        tk.Button(win, text="Verstanden & los", command=accept, bg="#16a34a", fg="white",
-                  relief="flat", padx=16, pady=6, font=("Segoe UI", 10, "bold")
-                  ).pack(pady=(4, 16))
+        theme.button(win, "Verstanden & los", accept, kind="success").pack(pady=(4, 18))
         win.protocol("WM_DELETE_WINDOW", lambda: None)
 
     def _privacy(self):
@@ -418,11 +436,11 @@ class App:
             from PIL import Image, ImageDraw
         except Exception:
             return False
-        img = Image.new("RGB", (64, 64), "#0f172a")
+        img = Image.new("RGB", (64, 64), "#1B3A6B")
         d = ImageDraw.Draw(img)
-        d.rectangle([16, 30, 24, 48], fill="#16a34a")
-        d.rectangle([28, 20, 36, 48], fill="#16a34a")
-        d.rectangle([40, 10, 48, 48], fill="#16a34a")
+        d.rectangle([16, 30, 24, 48], fill="#0ea5e9")
+        d.rectangle([28, 20, 36, 48], fill="#38bdf8")
+        d.rectangle([40, 10, 48, 48], fill="#7dd3fc")
         menu = pystray.Menu(
             pystray.MenuItem("Öffnen", self._tray_show, default=True),
             pystray.MenuItem("Start/Stop", lambda *_: self._toggle()),
