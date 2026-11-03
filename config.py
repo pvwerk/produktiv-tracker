@@ -79,6 +79,9 @@ DEFAULT_TASK_MATCHERS = []  # z.B. [{"match":"verwaltung.mein-handwerker.de","pa
 # Autostart: Tool startet automatisch mit der Windows-Anmeldung
 DEFAULT_AUTOSTART = True
 
+# Adresse des CRM. Leer lassen schaltet die Anbindung ab.
+DEFAULT_CRM_URL = "https://crm.photovoltaikwerk.de"
+
 
 def data_dir():
     base = os.environ.get("LOCALAPPDATA") or os.path.expanduser("~")
@@ -129,6 +132,13 @@ def load_config():
         "store_window_titles": DEFAULT_STORE_TITLES,
         "task_matchers": DEFAULT_TASK_MATCHERS,
         "autostart": DEFAULT_AUTOSTART,
+        # CRM-Anbindung (optional, standardmaessig AUS).
+        # Erst wenn BEIDE Werte gefuellt sind, wird ueberhaupt etwas
+        # uebertragen -- und dann nur die fertige Tagesauswertung, nie die
+        # Rohdaten. Siehe crm_sync.py.
+        "crm_url": DEFAULT_CRM_URL,
+        "crm_token": "",
+        "crm_autosend": False,
     }
     if os.path.exists(path):
         try:

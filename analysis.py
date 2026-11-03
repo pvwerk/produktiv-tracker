@@ -334,6 +334,25 @@ def analyze(samples, cfg=None):
         "hourly_level": {h: dict(v) for h, v in sorted(hourly_level.items())},
         "focus": {
             "blocks": [b["dur"] for b in blocks],
+            # 03.11.2026, additiv fuer die CRM-Anbindung: die ZEITRAEUME der
+            # fokussierten Bloecke. Ohne sie laesst sich spaeter nicht sagen,
+            # WORAN waehrend einer konzentrierten Phase gearbeitet wurde --
+            # die reinen Dauern oben reichen dafuer nicht. Bestehende
+            # Auswertungen bleiben unberuehrt, es kommt nur ein Feld dazu.
+            "blocks_zeiten": [
+                # astimezone(): MIT Zeitzonen-Angabe. Ohne sie liefert
+                # isoformat() "2026-11-03T09:00:00" -- die Gegenstelle kann
+                # dann nicht wissen, ob lokale Zeit oder UTC gemeint ist,
+                # und vergleicht sie mit zonenbehafteten Zeitstempeln aus
+                # der Datenbank. Das ergibt je nach Jahreszeit ein bis zwei
+                # Stunden Versatz, und damit systematisch falsche Aussagen
+                # darueber, waehrend welcher Taetigkeit jemand konzentriert
+                # war. Beim Durchstich am 03.11. genau so aufgetreten.
+                {"von": datetime.fromtimestamp(b["start"]).astimezone().isoformat(),
+                 "bis": datetime.fromtimestamp(b["end"]).astimezone().isoformat(),
+                 "dauer": b["dur"], "label": b.get("label")}
+                for b in focus_blocks
+            ],
             "focus_count": len(focus_blocks),
             "deepwork_count": len(deepwork),
             "focus_time": focus_time,

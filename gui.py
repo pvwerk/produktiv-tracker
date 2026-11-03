@@ -131,6 +131,7 @@ class App:
         fb(row1, "🧩 Aufgaben-Erkennung", self._task_matchers)
         fb(row1, "⚙ Einstellungen", self._settings)
 
+        fb(row2, "🔗 CRM-Anbindung", self._crm_settings)
         fb(row2, "ℹ Datenschutz", self._privacy)
         fb(row2, "🆕 Was ist neu", self._changelog)
         self.autostart_btn = theme.button(row2, self._autostart_label(), self._toggle_autostart,
@@ -412,6 +413,105 @@ class App:
 
         theme.button(win, "Verstanden & los", accept, kind="success").pack(pady=(4, 18))
         win.protocol("WM_DELETE_WINDOW", lambda: None)
+
+
+    # ---------- CRM-Anbindung (optional) ----------
+    # 03.11.2026: Ergaenzung, kein Ersatz. Das Tool arbeitet unveraendert
+    # lokal weiter; hier laesst sich zusaetzlich einschalten, dass die
+    # FERTIGE Tagesauswertung ins PVWERK-CRM uebertragen wird. Rohdaten und
+    # Fenstertitel bleiben in jedem Fall auf diesem Rechner.
+    def _crm_settings(self):
+        import crm_sync
+        C = theme.COLORS
+        win = theme.dialog(tk.Toplevel(self.root))
+        win.title("CRM-Anbindung")
+        win.geometry("560x430")
+        theme.dialog_header(win, "🔗 CRM-Anbindung")
+
+        box = tk.Frame(win, bg=C["surface"]); box.pack(fill="both", expand=True, padx=16, pady=12)
+
+        erklaerung = (
+            "Optional. Wenn eingeschaltet, schickt das Tool die fertige Tagesauswertung\n"
+            "zusaetzlich ins CRM, damit du sie auch dort ansehen kannst.\n\n"
+            "Es werden NUR die Auswertungszahlen uebertragen -- keine Fenstertitel,\n"
+            "keine vollstaendigen Adressen, keine Rohdaten. Im CRM sieht ausschliesslich\n"
+            "DU diese Daten; auch Administratoren koennen sie nicht einsehen.\n\n"
+            "Das Token erzeugst du im CRM unter 'Meine Produktivitaet'. Du kannst es\n"
+            "dort jederzeit zurueckziehen -- danach wird nichts mehr uebertragen."
+        )
+        theme.label(box, erklaerung, on="surface", kind="small").pack(anchor="w", pady=(0, 10))
+
+        tk.Label(box, text="CRM-Adresse", bg=C["surface"], fg=C["text"],
+                 font=theme.F_BODY).pack(anchor="w")
+        url_var = tk.StringVar(value=self.cfg.get("crm_url", ""))
+        theme.entry(box, textvariable=url_var).pack(fill="x", pady=(2, 8))
+
+        tk.Label(box, text="Token", bg=C["surface"], fg=C["text"],
+                 font=theme.F_BODY).pack(anchor="w")
+        token_var = tk.StringVar(value=self.cfg.get("crm_token", ""))
+        theme.entry(box, textvariable=token_var, show="*").pack(fill="x", pady=(2, 8))
+
+        auto_var = tk.BooleanVar(value=bool(self.cfg.get("crm_autosend", False)))
+        tk.Checkbutton(box, text="Taeglich automatisch uebertragen",
+                       variable=auto_var, bg=C["surface"], fg=C["text"],
+                       activebackground=C["surface"], font=theme.F_BODY,
+                       selectcolor="white").pack(anchor="w", pady=(0, 10))
+
+        status = tk.Label(box, text="", bg=C["surface"], fg=C["muted"], font=theme.F_SMALL,
+                          wraplength=500, justify="left")
+        status.pack(anchor="w", pady=(0, 8))
+
+        def uebernehmen():
+            self.cfg["crm_url"] = url_var.get().strip()
+            self.cfg["crm_token"] = token_var.get().strip()
+            self.cfg["crm_autosend"] = bool(auto_var.get())
+            config.save_config(self.cfg)
+
+        def testen():
+            uebernehmen()
+            status.config(text="Teste ...", fg=C["muted"])
+            win.update_idletasks()
+            ok, meldung = crm_sync.teste_verbindung(self.cfg)
+            status.config(text=("OK -- " if ok else "Fehlgeschlagen -- ") + meldung,
+                          fg=("#16a34a" if ok else "#dc2626"))
+
+        def jetzt_senden():
+            uebernehmen()
+            if not crm_sync.ist_aktiv(self.cfg):
+                status.config(text="Bitte zuerst Adresse und Token eintragen.", fg="#dc2626")
+                return
+            status.config(text="Uebertrage ...", fg=C["muted"])
+            win.update_idletasks()
+            ok, meldung = self._crm_sende_heute()
+            status.config(text=meldung, fg=("#16a34a" if ok else "#dc2626"))
+
+        def speichern():
+            uebernehmen()
+            status.config(text="Gespeichert.", fg="#16a34a")
+
+        leiste = tk.Frame(box, bg=C["surface"]); leiste.pack(fill="x", pady=(4, 0))
+        theme.button(leiste, "Verbindung testen", testen, compact=True).pack(side="left", padx=(0, 6))
+        theme.button(leiste, "Heutigen Tag senden", jetzt_senden, compact=True).pack(side="left", padx=6)
+        theme.button(leiste, "Speichern", speichern, kind="primary", compact=True).pack(side="right")
+
+    def _crm_sende_heute(self):
+        """Heutige Auswertung an das CRM schicken. Gibt (ok, meldung) zurueck."""
+        import crm_sync
+        from datetime import datetime
+        try:
+            start, ende = analysis.day_bounds()
+            samples = storage.fetch_samples(start, ende)
+            auswertung = analysis.analyze(samples, self.cfg)
+            try:
+                import _buildinfo
+                version = getattr(_buildinfo, "VERSION", None)
+            except Exception:
+                version = None
+            return crm_sync.sende_tag(
+                self.cfg, datetime.fromtimestamp(start).strftime("%Y-%m-%d"),
+                auswertung, version)
+        except Exception as e:  # noqa: BLE001
+            return False, "Fehler beim Aufbereiten: %s" % e
 
     def _privacy(self):
         messagebox.showinfo(
