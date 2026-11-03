@@ -6,6 +6,10 @@ aufzudecken. Du startest und stoppst die Aufzeichnung jederzeit selbst.
 
 > **Alle Daten bleiben ausschließlich lokal auf deinem PC.** Nichts geht ins Internet.
 > Nur du siehst die Auswertung. Details: siehe `DATENSCHUTZ.md`.
+>
+> *Optional* kannst du unter „🔗 CRM-Anbindung" einschalten, dass die **Auswertung**
+> (nicht die Rohdaten) zusätzlich ins PVWERK-CRM wandert — dort sieht sie ebenfalls
+> nur du. Standardmäßig ist das aus.
 
 ## Was es erfasst
 - Aktives **Programm/Fenster** + Dauer.
