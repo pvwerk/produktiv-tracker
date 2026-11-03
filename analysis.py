@@ -334,6 +334,17 @@ def analyze(samples, cfg=None):
         "hourly_level": {h: dict(v) for h, v in sorted(hourly_level.items())},
         "focus": {
             "blocks": [b["dur"] for b in blocks],
+            # 03.11.2026, additiv fuer die CRM-Anbindung: die ZEITRAEUME der
+            # fokussierten Bloecke. Ohne sie laesst sich spaeter nicht sagen,
+            # WORAN waehrend einer konzentrierten Phase gearbeitet wurde --
+            # die reinen Dauern oben reichen dafuer nicht. Bestehende
+            # Auswertungen bleiben unberuehrt, es kommt nur ein Feld dazu.
+            "blocks_zeiten": [
+                {"von": datetime.fromtimestamp(b["start"]).isoformat(),
+                 "bis": datetime.fromtimestamp(b["end"]).isoformat(),
+                 "dauer": b["dur"], "label": b.get("label")}
+                for b in focus_blocks
+            ],
             "focus_count": len(focus_blocks),
             "deepwork_count": len(deepwork),
             "focus_time": focus_time,
