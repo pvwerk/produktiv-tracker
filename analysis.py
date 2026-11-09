@@ -7,6 +7,8 @@ import re
 from datetime import datetime, timedelta
 from collections import defaultdict, Counter
 
+import config
+
 # Studien-Grundlage für die Schätzung verlorener Zeit (im UI zitiert):
 # - Mark et al., CHI 2008: ~23 Min Refokussierung nach Unterbrechung.
 # - APA / Rubinstein, Meyer & Evans 2001: Aufgabenwechsel kann bis zu 40 % der
@@ -133,6 +135,61 @@ def build_segments(samples, cfg=None):
     return segs
 
 
+# Das Tool selbst. Ein offenes Tracker-Fenster ist keine Arbeit und darf
+# keinen Fokusblock bilden (09.11.2026: 56 min "Fokus" auf diesem Fenster).
+TRACKER_EXE = "produktivitaets-tracker.exe"
+
+
+def domain_zeiten(samples, min_sek=10, max_eintraege=400):
+    """Zeitraeume je Webseite (nur Hauptadresse, nie der volle Link).
+
+    09.11.2026, fuer die CRM-Auswertung: by_domain sagt nur WIE LANGE
+    insgesamt. Um zu sagen, fuer WELCHES PROJEKT die Zeit bei Westnetz
+    anfiel, braucht das CRM die Zeitraeume -- es legt sie dann neben die
+    eigenen Taetigkeits-Abschnitte (welches Projekt war gerade offen).
+    """
+    out = []
+    cur = None
+    for s in samples:
+        dur = float(s["duration"] or 0)
+        if dur <= 0:
+            continue
+        dur = min(dur, 600)
+        # Volle Hauptadresse (crm.photovoltaikwerk.de ist nicht die Website
+        # www.photovoltaikwerk.de); zusammengefasst wird erst im CRM.
+        dom = None if s["idle"] else ((s.get("domain") or "").lower() or None)
+        if cur and dom == cur["domain"] and dom:
+            cur["bis"] = s["ts"]
+            cur["sek"] += dur
+            continue
+        if cur and cur["sek"] >= min_sek:
+            out.append(cur)
+        cur = {"domain": dom, "von": s["ts"] - dur, "bis": s["ts"], "sek": dur} if dom else None
+    if cur and cur["sek"] >= min_sek:
+        out.append(cur)
+    out = out[:max_eintraege]
+    return [{"domain": e["domain"],
+             "von": datetime.fromtimestamp(e["von"]).astimezone().isoformat(),
+             "bis": datetime.fromtimestamp(e["bis"]).astimezone().isoformat(),
+             "sek": round(e["sek"])} for e in out]
+
+
+def diagnose(samples, browser_processes):
+    """Messwerte UEBER die Messung -- damit im CRM sichtbar wird, wenn die
+    Erfassung selbst nicht funktioniert (09.11.2026: Webseiten und Leerlauf
+    waren still kaputt, aufgefallen erst an den Zahlen)."""
+    browser = mit_domain = leerlauf = 0
+    for s in samples:
+        if s["idle"]:
+            leerlauf += 1
+        elif (s.get("process") or "") in browser_processes:
+            browser += 1
+            if s.get("domain"):
+                mit_domain += 1
+    return {"messungen": len(samples), "leerlauf_messungen": leerlauf,
+            "browser_messungen": browser, "browser_mit_adresse": mit_domain}
+
+
 def _focus_blocks(segments, idle_tolerance, pause_tolerance):
     """Blöcke fokussierter Arbeit. Kurze Pausen (Idle) UND kurze Abstecher in eine
     andere Tätigkeit (< pause_tolerance) brechen den Block nicht ab — die Aufgabe
@@ -140,7 +197,8 @@ def _focus_blocks(segments, idle_tolerance, pause_tolerance):
     blocks = []
     cur = None  # {key, dur, start, end}
     for s in segments:
-        if s["idle"]:
+        # Das eigene Tracker-Fenster zaehlt wie Abwesenheit.
+        if s["idle"] or s.get("app") == TRACKER_EXE:
             if cur and s["dur"] < idle_tolerance:
                 continue  # kurze Pause -> Block bleibt offen
             if cur:
@@ -286,7 +344,9 @@ def analyze(samples, cfg=None):
 
     # Segmente nach Aufgabe (mehrere Fenster derselben Aufgabe = 1 Segment)
     segments = build_segments(samples, cfg)
-    active_segs = [s for s in segments if not s["idle"]]
+    # Das eigene Tracker-Fenster ist kein Arbeitsschritt -- sonst erscheint
+    # "Westnetz <-> Tracker" als angebliche Doppelarbeit.
+    active_segs = [s for s in segments if not s["idle"] and s.get("app") != TRACKER_EXE]
     labels = {}
     seg_durs = defaultdict(float)
     for s in active_segs:
@@ -366,6 +426,8 @@ def analyze(samples, cfg=None):
         "batching": batching[:10],
         "interruptions": interruptions,
         "lost_estimate": lost,
+        "domain_zeiten": domain_zeiten(samples),
+        "diagnose": diagnose(samples, config.BROWSER_PROCESSES),
         "segments": segments,
     }
 

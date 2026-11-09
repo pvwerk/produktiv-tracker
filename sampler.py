@@ -24,8 +24,18 @@ def categorize(cfg, exe, domain):
         return proc_cats[exe]
 
     if exe in config.BROWSER_PROCESSES:
-        if domain and domain in dom_cats:
-            return dom_cats[domain]
+        if domain:
+            # 09.11.2026: auch Unterdomains treffen -- "netzanschluss.westnetz.de"
+            # soll unter "westnetz.de" einsortiert werden.
+            d = domain.lower()
+            while d:
+                if d in dom_cats:
+                    return dom_cats[d]
+                if "." not in d:
+                    break
+                d = d.split(".", 1)[1]
+                if "." not in d:  # nicht bis zur Endung "de" kuerzen
+                    break
         return "Web"
 
     if not exe:
@@ -93,6 +103,28 @@ class Tracker:
         return host
 
     def _loop(self):
+        # 09.11.2026: Die Browser-Adresse wird per Windows-UI-Automation
+        # gelesen (browser_url.py). Das Paket uiautomation verlangt in JEDEM
+        # Thread ausser dem Hauptthread eine eigene COM-Initialisierung --
+        # ohne sie scheitert jeder Aufruf, browser_url faengt den Fehler ab
+        # und liefert None. Folge bis hierhin: by_domain war IMMER leer, auch
+        # bei Christianes erster Uebertragung am 09.11. (8 h Browser, 0 Webseiten).
+        init = None
+        try:
+            import uiautomation as _auto
+            init = _auto.UIAutomationInitializerInThread(debug=False)
+        except Exception:
+            init = None
+        try:
+            self._messschleife()
+        finally:
+            if init is not None:
+                try:
+                    init.Uninitialize()
+                except Exception:
+                    pass
+
+    def _messschleife(self):
         last = time.time()
         while not self._stop.is_set():
             time.sleep(self.interval)
