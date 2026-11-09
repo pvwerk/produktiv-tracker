@@ -95,7 +95,8 @@ def sende_tag(cfg, tag_iso, auswertung, tool_version=None):
 def teste_verbindung(cfg):
     """
     Prüft Adresse und Token, ohne echte Daten abzulegen: überträgt eine
-    leere Auswertung für den 1.1.1970. Das CRM legt dafür eine Zeile an,
-    die man dort mit einem Klick wieder löschen kann.
+    leere Auswertung für den 1.1.1970. Seit dem CRM-Stand vom 09.11.2026
+    erkennt das CRM den Test und speichert nichts (vorher entstand dafür
+    eine Zeile "01.01.1970" in "Meine Produktivität").
     """
     return sende_tag(cfg, "1970-01-01", {"active": 0, "hinweis": "Verbindungstest"}, "test")

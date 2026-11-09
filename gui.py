@@ -263,7 +263,37 @@ class App:
         self._tick += 1
         if self._tick % 3 == 0 and self.tracker.running:
             self._recompute()
+        # 09.11.2026: "Taeglich automatisch uebertragen" war bis hierhin ein
+        # Schalter OHNE Wirkung -- die Einstellung wurde gespeichert, aber
+        # nirgends gelesen. Deshalb lag im CRM nur der eine Tag, der von Hand
+        # gesendet wurde. Jetzt: kurz nach dem Start die letzten 7 Tage
+        # (fuer Tage, an denen der PC abends schon aus war), danach alle
+        # 15 Minuten der laufende Tag. Das CRM ueberschreibt je Tag, doppelt
+        # senden ist also unschaedlich.
+        if self._tick == 3:
+            self._crm_auto(tage=7)
+        elif self._tick % 225 == 0:
+            self._crm_auto(tage=1)
         self.root.after(4000, self._loop)
+
+    def _crm_auto(self, tage=1):
+        """Automatische Uebertragung im Hintergrund -- blockiert die
+        Oberflaeche nicht, Fehler stoeren das Tool nie."""
+        import crm_sync
+        if not self.cfg.get("crm_autosend") or not crm_sync.ist_aktiv(self.cfg):
+            return
+
+        def lauf():
+            letzte = None
+            for i in range(tage - 1, -1, -1):
+                tag = datetime.now() - timedelta(days=i)
+                ok, meldung = self._crm_sende_tag(tag)
+                if ok or "keine Daten" not in meldung:
+                    letzte = (datetime.now(), ok, tag.strftime("%d.%m."), meldung)
+            if letzte:
+                self._crm_auto_status = letzte
+
+        threading.Thread(target=lauf, daemon=True).start()
 
     # ---------- Export ----------
     def _pdf(self):
@@ -506,7 +536,11 @@ class App:
                        activebackground=C["surface"], font=theme.F_BODY,
                        selectcolor="white").pack(anchor="w", pady=(0, 10))
 
-        status = tk.Label(box, text="", bg=C["surface"], fg=C["muted"], font=theme.F_SMALL,
+        auto_info = getattr(self, "_crm_auto_status", None)
+        status = tk.Label(box, text=(
+            "Letzte automatische Uebertragung: %s, Tag %s -- %s" % (
+                auto_info[0].strftime("%H:%M"), auto_info[2], auto_info[3])
+            if auto_info else ""), bg=C["surface"], fg=C["muted"], font=theme.F_SMALL,
                           wraplength=500, justify="left")
         status.pack(anchor="w", pady=(0, 8))
 
@@ -545,15 +579,22 @@ class App:
 
     def _crm_sende_heute(self):
         """Heutige Auswertung an das CRM schicken. Gibt (ok, meldung) zurueck."""
+        return self._crm_sende_tag(datetime.now())
+
+    def _crm_sende_tag(self, tag):
+        """Auswertung eines Tages an das CRM schicken. Gibt (ok, meldung) zurueck."""
         import crm_sync
-        from datetime import datetime
         try:
-            start, ende = analysis.day_bounds()
+            start, ende = analysis.day_bounds(tag)
             samples = storage.fetch_samples(start, ende)
+            if not samples:
+                return False, "keine Daten fuer diesen Tag"
             auswertung = analysis.analyze(samples, self.cfg)
             try:
                 import _buildinfo
-                version = getattr(_buildinfo, "VERSION", None)
+                # 09.11.2026: hiess hier VERSION, die Datei definiert aber
+                # BUILD_ID -> im CRM stand bei jedem Tag "Version: leer".
+                version = getattr(_buildinfo, "BUILD_ID", None)
             except Exception:
                 version = None
             return crm_sync.sende_tag(

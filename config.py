@@ -27,6 +27,16 @@ DEFAULT_PROCESS_CATEGORIES = {
     "teams.exe": "Kommunikation",
     "ms-teams.exe": "Kommunikation",
     "explorer.exe": "System/Dateien",
+    # 09.11.2026: in Christianes erster Auswertung als "Sonstige Programme"
+    # gelandet. olk.exe ist das NEUE Outlook (Windows 11), whatsapp.root.exe
+    # die WhatsApp-Desktop-App aus dem Microsoft Store.
+    "olk.exe": "E-Mail",
+    "whatsapp.exe": "Kommunikation",
+    "whatsapp.root.exe": "Kommunikation",
+    # Das Tool selbst: Wer die Auswertung anschaut, arbeitet nicht -- und
+    # ein offen stehendes Tracker-Fenster darf nicht als Fokusblock zaehlen
+    # (09.11.: 56 min "Fokus" auf produktivitaets-tracker.exe).
+    "produktivitaets-tracker.exe": "Tracker (eigenes Tool)",
 }
 
 # Hinweise, um die AGFEO-Software zu erkennen (Prozessname enthält einen dieser Texte)
@@ -43,6 +53,15 @@ DEFAULT_DOMAIN_CATEGORIES = {
     "www.youtube.com": "Privat/Ablenkung",
     "facebook.com": "Privat/Ablenkung",
     "instagram.com": "Privat/Ablenkung",
+    # 09.11.2026: Arbeits-Seiten, damit die Auswertung sie getrennt zeigt
+    # statt alles als "Web". Abgleich auch fuer Unterdomains (s. sampler).
+    "crm.photovoltaikwerk.de": "CRM",
+    "crm-sb.photovoltaikwerk.de": "CRM",
+    "westnetz.de": "Netzbetreiber",
+    "netze-bw.de": "Netzbetreiber",
+    "e-netz-suedhessen.de": "Netzbetreiber",
+    "marktstammdatenregister.de": "Netzbetreiber",
+    "zerez.net": "Netzbetreiber",
 }
 
 # Produktivitäts-Einordnung je Kategorie: "produktiv" | "neutral" | "ablenkung".
@@ -57,6 +76,9 @@ DEFAULT_PRODUCTIVITY_LEVELS = {
     "Sonstige Programme": "neutral",
     "Unbekannt": "neutral",
     "Privat/Ablenkung": "ablenkung",
+    "CRM": "produktiv",
+    "Netzbetreiber": "produktiv",
+    "Tracker (eigenes Tool)": "neutral",
 }
 
 LEVEL_COLORS = {"produktiv": "#059669", "neutral": "#0284c7", "ablenkung": "#ef4444",
@@ -144,9 +166,18 @@ def load_config():
         try:
             with open(path, "r", encoding="utf-8") as f:
                 stored = json.load(f)
-            # gespeicherte Werte über die Defaults legen
+            # gespeicherte Werte über die Defaults legen.
+            # 09.11.2026: Zuordnungs-Tabellen (dict) werden ZUSAMMENGEFUEHRT
+            # statt ersetzt -- vorher hat eine einmal angelegte config.json
+            # jede spaeter ausgelieferte neue Kategorie fuer immer
+            # verdeckt. Eigene Eintraege gewinnen weiterhin.
             for k, v in stored.items():
-                cfg[k] = v
+                if isinstance(v, dict) and isinstance(cfg.get(k), dict):
+                    merged = dict(cfg[k])
+                    merged.update(v)
+                    cfg[k] = merged
+                else:
+                    cfg[k] = v
         except Exception:
             pass
     else:

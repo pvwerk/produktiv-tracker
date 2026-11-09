@@ -9,6 +9,8 @@ except Exception:  # pragma: no cover
 
 user32 = ctypes.windll.user32 if hasattr(ctypes, "windll") else None
 kernel32 = ctypes.windll.kernel32 if hasattr(ctypes, "windll") else None
+if kernel32 is not None:
+    kernel32.GetTickCount.restype = wintypes.DWORD
 
 
 class LASTINPUTINFO(ctypes.Structure):
@@ -22,8 +24,14 @@ def get_idle_seconds():
         info.cbSize = ctypes.sizeof(LASTINPUTINFO)
         if not user32.GetLastInputInfo(ctypes.byref(info)):
             return 0.0
-        millis = kernel32.GetTickCount() - info.dwTime
-        return max(0.0, millis / 1000.0)
+        # 09.11.2026: GetTickCount liefert ein vorzeichenloses DWORD, ctypes
+        # liest ohne restype aber ein VORZEICHENBEHAFTETES int. Nach 24,8 Tagen
+        # Laufzeit (Energiesparen/Ruhezustand zaehlt mit) wird der Wert negativ,
+        # die Differenz ebenfalls -> max(0, ...) = 0 -> der PC galt NIE als
+        # abwesend. Beide Werte sind 32-Bit-Zaehler; die Differenz modulo 2^32
+        # ist auch ueber den Ueberlauf (alle 49,7 Tage) hinweg richtig.
+        millis = (int(kernel32.GetTickCount()) - int(info.dwTime)) & 0xFFFFFFFF
+        return millis / 1000.0
     except Exception:
         return 0.0
 
