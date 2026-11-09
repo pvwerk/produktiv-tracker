@@ -1,5 +1,23 @@
 # changelog.py — Änderungsverlauf, im Tool unter „🆕 Was ist neu" lesbar.
 CHANGELOG = """\
+Version 6 — CRM-Anbindung
+
+NEU
+• Optionale Anbindung ans PVWERK-CRM: Wenn du möchtest, wird die fertige
+  Tagesauswertung zusätzlich ins CRM übertragen, damit du sie auch dort
+  ansehen kannst. Standardmäßig AUS.
+  Es werden nur die Auswertungszahlen übertragen — keine Fenstertitel und
+  keine Rohdaten. Die bleiben in jedem Fall auf diesem PC.
+  Einzurichten unter „🔗 CRM-Anbindung"; das Token erzeugst du im CRM unter
+  „Meine Produktivität" und kannst es dort jederzeit zurückziehen.
+
+BEHOBEN
+• Das Fenster „CRM-Anbindung" blieb leer (nur die blaue Kopfzeile war zu
+  sehen) — behoben.
+• Unerwartete Fehler werden jetzt als Meldung angezeigt, statt dass ein
+  Fenster einfach halb leer bleibt.
+
+
 Version 5 — Neues Design
 
 NEU

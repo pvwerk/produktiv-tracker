@@ -4,3 +4,7 @@ build/
 dist/
 *.spec.bak
 .venv/
+
+# Vom Landkarte-Dienst erzeugt
+KARTE.md
+.landkarte/

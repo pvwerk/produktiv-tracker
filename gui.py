@@ -52,6 +52,7 @@ class App:
         self.root.geometry("1020x780")
         self.root.minsize(900, 660)
         theme.apply(self.root)
+        self._fehler_sichtbar_machen()
         self._tray = None
         self._tick = 0
         self._build()
@@ -140,6 +141,42 @@ class App:
         fb(row2, "🗑 Daten löschen", self._delete_data, kind="danger")
         fb(row2, "Beenden", self._quit, side="right")
         fb(row2, "⤓ Update", lambda: self._check_update(silent=False), kind="primary", side="right")
+
+    def _fehler_sichtbar_machen(self):
+        """Unerwartete Fehler anzeigen statt stillschweigend abbrechen.
+
+        09.11.2026, Bug-Report Christiane: Beim Oeffnen der CRM-Anbindung
+        blieb das Fenster leer -- Kopf da, Inhalt nicht. Ursache war ein
+        KeyError mitten im Aufbau (kind="small", das theme.label() nicht
+        kennt). Tk faengt Fehler in Callbacks ab und schreibt sie auf
+        stderr; die EXE laeuft aber ohne Konsole (build.spec: console=False),
+        also sah das niemand. Nach aussen: ein halbes Fenster, kein Hinweis.
+
+        Deshalb hier ein eigener Handler. Er macht den Fehler nicht
+        ungeschehen -- das halb aufgebaute Fenster bleibt halb -- aber der
+        Nutzer weiss, dass etwas schiefging und kann es melden, statt zu
+        glauben, das Programm sei einfach langsam.
+        """
+        import traceback
+        from tkinter import messagebox
+
+        def behandeln(exc, wert, spur):
+            text = "".join(traceback.format_exception(exc, wert, spur))
+            try:
+                print(text, flush=True)   # falls doch mal eine Konsole da ist
+            except Exception:
+                pass
+            try:
+                messagebox.showerror(
+                    "Unerwarteter Fehler",
+                    f"{exc.__name__}: {wert}\n\n"
+                    "Das Fenster ist moeglicherweise unvollstaendig. "
+                    "Bitte Jan Bescheid geben -- mit dieser Meldung.",
+                )
+            except Exception:
+                pass
+
+        self.root.report_callback_exception = behandeln
 
     # ---------- Daten ----------
     def _bounds(self):
@@ -439,7 +476,19 @@ class App:
             "Das Token erzeugst du im CRM unter 'Meine Produktivitaet'. Du kannst es\n"
             "dort jederzeit zurueckziehen -- danach wird nichts mehr uebertragen."
         )
-        theme.label(box, erklaerung, on="surface", kind="small").pack(anchor="w", pady=(0, 10))
+        # 09.11.2026, Bug-Report Christiane (ueber Jan, mit Foto): "Wenn sie
+        # auf Code aus dem CRM hinzufuegen anklickt", blieb das Fenster leer
+        # -- Titelleiste und blauer Kopf da, darunter nichts.
+        #
+        # Ursache stand hier: kind="small". theme.label() kennt nur body,
+        # muted, h1, h2, on_dark, on_dark_muted und schlaegt die Schriftart
+        # direkt im Dict nach -- bei "small" also KeyError. Der fliegt bei
+        # der ERSTEN Zeile im Inhaltsbereich, nachdem dialog_header() schon
+        # gezeichnet ist. Genau das Bild aus dem Foto.
+        #
+        # Richtig ist "muted" -- das ist in theme.py die kleine graue
+        # Schrift (F_SMALL), die hier gemeint war.
+        theme.label(box, erklaerung, on="surface", kind="muted").pack(anchor="w", pady=(0, 10))
 
         tk.Label(box, text="CRM-Adresse", bg=C["surface"], fg=C["text"],
                  font=theme.F_BODY).pack(anchor="w")
