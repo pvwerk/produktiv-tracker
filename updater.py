@@ -8,6 +8,8 @@ import tempfile
 import subprocess
 import urllib.request
 
+import netz
+
 REPO = "pvwerk/produktiv-tracker"
 BASE = f"https://github.com/{REPO}/releases/latest/download"
 VERSION_URL = BASE + "/version.json"
@@ -36,7 +38,7 @@ def is_frozen():
 
 def _get(url, timeout=10):
     req = urllib.request.Request(url, headers={"User-Agent": "ProduktivTracker"})
-    with urllib.request.urlopen(req, timeout=timeout) as r:
+    with urllib.request.urlopen(req, timeout=timeout, context=netz.ssl_kontext()) as r:
         return r.read()
 
 

@@ -13,6 +13,10 @@ NEU
   freiwillig; ohne läuft die Messung trotzdem.
 • Windows: keine Änderung an der Messung.
 
+BEHOBEN
+• Mac: CRM-Anbindung und Update-Prüfung scheiterten mit
+  „CERTIFICATE_VERIFY_FAILED“ — die App bringt ihre Zertifikate jetzt mit.
+
 
 Version 6 — CRM-Anbindung
 

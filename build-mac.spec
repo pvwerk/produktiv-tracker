@@ -2,7 +2,7 @@
 from PyInstaller.utils.hooks import collect_all
 
 datas, binaries, hiddenimports = [], [], []
-for pkg in ["matplotlib", "PIL", "psutil", "Quartz"]:
+for pkg in ["matplotlib", "PIL", "psutil", "Quartz", "certifi"]:
     try:
         d, b, h = collect_all(pkg)
         datas += d
@@ -11,7 +11,7 @@ for pkg in ["matplotlib", "PIL", "psutil", "Quartz"]:
     except Exception:
         pass
 
-hiddenimports += ["PIL._tkinter_finder", "mac_activity"]
+hiddenimports += ["PIL._tkinter_finder", "mac_activity", "netz", "certifi"]
 
 a = Analysis(
     ["app.py"],

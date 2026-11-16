@@ -42,6 +42,10 @@ jobs:
       - name: Build EXE
         run: pyinstaller build.spec
 
+      - name: Selbsttest der gebauten EXE (HTTPS, Messung)
+        shell: bash
+        run: PT_SELBSTTEST=1 ./dist/Produktivitaets-Tracker.exe
+
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
@@ -89,6 +93,9 @@ jobs:
 
       - name: Build App
         run: pyinstaller --noconfirm build-mac.spec
+
+      - name: Selbsttest der gebauten App (HTTPS, Messung)
+        run: PT_SELBSTTEST=1 ./dist/Produktivitaets-Tracker.app/Contents/MacOS/Produktivitaets-Tracker
 
       - name: App startet (5 s, dann beenden)
         run: |

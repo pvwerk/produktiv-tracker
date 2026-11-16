@@ -6,3 +6,4 @@ uiautomation>=2.0.18; sys_platform == "win32"
 pystray>=0.19; sys_platform == "win32"
 # nur macOS (16.11.2026): Fenster/Leerlauf über Quartz
 pyobjc-framework-Quartz>=10.0; sys_platform == "darwin"
+certifi>=2024.0; sys_platform == "darwin"

@@ -28,6 +28,8 @@
 
 import json
 import urllib.request
+
+import netz
 import urllib.error
 
 TIMEOUT = 20
@@ -100,7 +102,7 @@ def sende_tag(cfg, tag_iso, auswertung, tool_version=None):
     anfrage.add_header("Authorization", "Bearer " + str(cfg["crm_token"]))
 
     try:
-        with urllib.request.urlopen(anfrage, timeout=TIMEOUT) as antwort:
+        with urllib.request.urlopen(anfrage, timeout=TIMEOUT, context=netz.ssl_kontext()) as antwort:
             if 200 <= antwort.status < 300:
                 return True, "Übertragen."
             return False, "Unerwartete Antwort: HTTP %s" % antwort.status
