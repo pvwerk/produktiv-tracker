@@ -63,7 +63,7 @@ jobs:
             version.json
 
   build-mac:
-    runs-on: macos-14   # Apple-Chip (arm64)
+    runs-on: macos-15   # Apple-Chip (arm64); macos-14 gibt es nicht mehr (16.11.)
     steps:
       - uses: actions/checkout@v4
 

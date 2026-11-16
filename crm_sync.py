@@ -38,9 +38,39 @@ def ist_aktiv(cfg):
     return bool((cfg or {}).get("crm_url")) and bool((cfg or {}).get("crm_token"))
 
 
+# 16.11.2026: Wer an zwei Rechnern arbeitet (Andre: PC zu Hause + MacBook
+# im Büro), schickt je Rechner eine Tagesauswertung. Damit das CRM die Tage
+# zusammenlegen kann, ohne gleichzeitige Zeit doppelt zu zählen, gehen die
+# Zeiträume mit -- NUR Beginn und Ende (Unix-Sekunden), keine Programme,
+# keine Titel. Lücken bis LUECKE_SEK werden überbrückt (Messtakt 3 s).
+LUECKE_SEK = 15
+
+
+def _zusammenfassen(spannen):
+    spannen = sorted((int(a), int(b)) for a, b in spannen if b > a)
+    out = []
+    for a, b in spannen:
+        if out and a <= out[-1][1] + LUECKE_SEK:
+            out[-1][1] = max(out[-1][1], b)
+        else:
+            out.append([a, b])
+    return out
+
+
+def zeitraeume(segmente):
+    """{"aktiv": [[von, bis], ...], "erfasst": [[von, bis], ...]} aus den Segmenten."""
+    segmente = segmente or []
+    return {
+        "aktiv": _zusammenfassen((s["start"], s["end"]) for s in segmente if not s.get("idle")),
+        "erfasst": _zusammenfassen((s["start"], s["end"]) for s in segmente),
+    }
+
+
 def _ohne_rohdaten(auswertung):
     """Felder entfernen, die einzelne Fenstertitel enthalten können."""
     schlank = dict(auswertung or {})
+    if "segments" in schlank:
+        schlank["zeitraeume"] = zeitraeume(schlank["segments"])
     for feld in ("segments", "tasks"):
         schlank.pop(feld, None)
     return schlank
