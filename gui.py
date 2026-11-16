@@ -70,7 +70,7 @@ class App:
         head.pack(fill="x")
         tk.Label(head, text="📊  " + config.APP_TITLE, bg=C["navy"], fg=C["on_dark"],
                  font=theme.F_H1).pack(side="left", padx=16, pady=13)
-        tk.Label(head, text="Alle Daten bleiben nur auf diesem PC · nur du siehst sie",
+        tk.Label(head, text="Alle Daten bleiben nur auf diesem Rechner · nur du siehst sie",
                  bg=C["navy"], fg=C["on_dark_muted"], font=theme.F_SMALL).pack(side="right", padx=16)
 
         # ---------- Steuerleiste (Karte) ----------
@@ -248,9 +248,35 @@ class App:
             theme.set_kind(self.btn, "success", text="▶  Tracking starten")
             self.status.config(text="gestoppt", fg=theme.COLORS["muted"])
         else:
+            self._mac_titel_freigabe()
             self.tracker.start()
             theme.set_kind(self.btn, "danger", text="⏸  Tracking stoppen")
             self.status.config(text="läuft …", fg=theme.COLORS["success"])
+
+    def _mac_titel_freigabe(self):
+        """16.11.2026 macOS: Fenstertitel gibt es nur mit der Freigabe
+        "Bildschirmaufnahme". Einmal erklären und die Systemabfrage zeigen --
+        danach nie wieder fragen (die Entscheidung liegt bei der Person)."""
+        if sys.platform != "darwin" or not self.cfg.get("store_window_titles", True):
+            return
+        try:
+            import mac_activity
+        except Exception:
+            return
+        if mac_activity.titel_freigabe_vorhanden() or self.cfg.get("mac_titel_gefragt"):
+            return
+        self.cfg["mac_titel_gefragt"] = True
+        config.save_config(self.cfg)
+        messagebox.showinfo(
+            "Fenstertitel am Mac",
+            "Damit das Tool zusammengehörige Fenster als eine Aufgabe erkennt, "
+            "braucht es die Fenstertitel.\n\n"
+            "macOS nennt diese Freigabe „Bildschirmaufnahme“. Das Tool macht "
+            "trotzdem KEINE Bildschirmfotos – es liest nur die Titel.\n\n"
+            "Ohne Freigabe läuft alles andere normal weiter. Ändern kannst du es "
+            "jederzeit unter Systemeinstellungen → Datenschutz & Sicherheit → "
+            "Bildschirm- & Systemaudioaufnahme.")
+        mac_activity.titel_freigabe_anfragen()
 
     def _loop(self):
         # Live-Zeile schnell, Neuberechnung der Diagramme alle ~12 s
@@ -418,7 +444,7 @@ class App:
             if not silent:
                 if not updater.is_frozen():
                     messagebox.showinfo("Update", "Update-Prüfung nur in der installierten "
-                                                   "App (.exe) verfügbar.")
+                                                   "App verfügbar.")
                 else:
                     messagebox.showinfo("Update", "Du hast bereits die neueste Version.")
             return
@@ -457,9 +483,9 @@ class App:
         hdr = tk.Frame(win, bg=C["navy"]); hdr.pack(fill="x")
         tk.Label(hdr, text="Dein persönliches Auswertungs-Tool", bg=C["navy"], fg=C["on_dark"],
                  font=theme.F_H2).pack(padx=20, pady=12)
-        msg = ("Dieses Tool hilft DIR, deinen eigenen Arbeitstag am PC zu verstehen und\n"
+        msg = ("Dieses Tool hilft DIR, deinen eigenen Arbeitstag am Rechner zu verstehen und\n"
                "Abläufe zu verbessern. Du startest und stoppst selbst.\n\n"
-               "• Alle Daten bleiben NUR auf diesem PC — nichts geht ins Internet.\n"
+               "• Alle Daten bleiben NUR auf diesem Rechner — nichts geht ins Internet.\n"
                "• Kein Mitschneiden von Texten, keine Screenshots, keine Kamera.\n"
                "• Nur Hauptadresse (z. B. www.westnetz.de), nicht der volle Link.\n"
                "• Nur du siehst die Auswertung. Keine Leistungsbewertung.\n"
@@ -609,7 +635,7 @@ class App:
             "• KEINE Tastatureingaben / keine Texte mitschneiden\n"
             "• KEINE Screenshots, keine Kamera, kein Mikrofon\n"
             "• KEINE vollständigen Internet-Adressen — nur die Hauptadresse (z.B. www.westnetz.de)\n"
-            "• KEINE Cloud — alles bleibt lokal auf diesem PC\n"
+            "• KEINE Cloud — alles bleibt lokal auf diesem Rechner\n"
             "• KEINE Live-Überwachung durch Dritte — nur du siehst die Auswertung\n\n"
             "Du startest/stoppst selbst und kannst alle Daten jederzeit löschen "
             "(Daten-Ordner → tracker.db).")
@@ -624,6 +650,11 @@ class App:
     def _ensure_tray(self):
         if self._tray is not None:
             return True
+        # 16.11.2026 macOS: pystray muss dort im Hauptthread laufen, den
+        # belegt aber Tk -> kein Menüleisten-Symbol; Schließen legt das
+        # Fenster ins Dock, die Messung läuft weiter.
+        if sys.platform == "darwin":
+            return False
         try:
             import pystray
             from PIL import Image, ImageDraw
@@ -676,11 +707,12 @@ class App:
             pass
         if not autostart.is_frozen():
             messagebox.showinfo("Autostart",
-                                "Einstellung gespeichert. Der Autostart wirkt nur in der installierten App (.exe).")
+                                "Einstellung gespeichert. Der Autostart wirkt nur in der installierten App.")
         elif new and not ok:
             messagebox.showwarning("Autostart", "Autostart konnte nicht eingerichtet werden.")
         elif new:
-            messagebox.showinfo("Autostart", "Das Tool startet künftig automatisch mit Windows.")
+            messagebox.showinfo("Autostart", "Das Tool startet künftig automatisch mit "
+                                + ("macOS." if sys.platform == "darwin" else "Windows."))
         else:
             messagebox.showinfo("Autostart", "Der Autostart wurde deaktiviert.")
 

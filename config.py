@@ -1,6 +1,7 @@
 # config.py — Einstellungen + Kategorisierung
 # Alles lokal. Eine benutzerbearbeitbare config.json wird im Datenordner abgelegt.
 import os
+import sys
 import json
 
 APP_NAME = "Produktivitaets-Tracker"
@@ -12,7 +13,10 @@ DEFAULT_SAMPLE_INTERVAL = 3
 DEFAULT_IDLE_THRESHOLD = 60
 
 # Browser-Prozesse (Kleinschreibung)
-BROWSER_PROCESSES = {"firefox.exe", "chrome.exe", "msedge.exe", "brave.exe", "opera.exe"}
+BROWSER_PROCESSES = {"firefox.exe", "chrome.exe", "msedge.exe", "brave.exe", "opera.exe",
+                     # 16.11.2026 macOS (Prozessnamen klein)
+                     "safari", "google chrome", "firefox", "microsoft edge", "brave browser",
+                     "arc", "opera"}
 
 # Standard-Kategorien: Prozessname -> Kategorie
 DEFAULT_PROCESS_CATEGORIES = {
@@ -37,6 +41,23 @@ DEFAULT_PROCESS_CATEGORIES = {
     # ein offen stehendes Tracker-Fenster darf nicht als Fokusblock zaehlen
     # (09.11.: 56 min "Fokus" auf produktivitaets-tracker.exe).
     "produktivitaets-tracker.exe": "Tracker (eigenes Tool)",
+    # 16.11.2026 macOS: Prozessnamen der Mac-Programme (klein geschrieben)
+    "microsoft outlook": "E-Mail",
+    "mail": "E-Mail",
+    "thunderbird": "E-Mail",
+    "microsoft word": "Office",
+    "microsoft excel": "Office",
+    "microsoft powerpoint": "Office",
+    "pages": "Office",
+    "numbers": "Office",
+    "keynote": "Office",
+    "msteams": "Kommunikation",
+    "microsoft teams": "Kommunikation",
+    "whatsapp": "Kommunikation",
+    "messages": "Kommunikation",
+    "nachrichten": "Kommunikation",
+    "finder": "System/Dateien",
+    "produktivitaets-tracker": "Tracker (eigenes Tool)",
 }
 
 # Hinweise, um die AGFEO-Software zu erkennen (Prozessname enthält einen dieser Texte)
@@ -98,7 +119,7 @@ DEFAULT_STORE_TITLES = True
 # = Identifikator). In den Einstellungen des Tools pflegbar.
 DEFAULT_TASK_MATCHERS = []  # z.B. [{"match":"verwaltung.mein-handwerker.de","pattern":"Kunde:?\\s*([^|\\-–]+)"}]
 
-# Autostart: Tool startet automatisch mit der Windows-Anmeldung
+# Autostart: Tool startet automatisch mit der Anmeldung (Windows und Mac)
 DEFAULT_AUTOSTART = True
 
 # Adresse des CRM. Leer lassen schaltet die Anbindung ab.
@@ -106,7 +127,11 @@ DEFAULT_CRM_URL = "https://crm.photovoltaikwerk.de"
 
 
 def data_dir():
-    base = os.environ.get("LOCALAPPDATA") or os.path.expanduser("~")
+    # 16.11.2026 macOS: an die übliche Stelle für Programmdaten.
+    if sys.platform == "darwin":
+        base = os.path.expanduser("~/Library/Application Support")
+    else:
+        base = os.environ.get("LOCALAPPDATA") or os.path.expanduser("~")
     d = os.path.join(base, APP_NAME)
     os.makedirs(d, exist_ok=True)
     return d

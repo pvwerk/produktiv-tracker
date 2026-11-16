@@ -1,6 +1,6 @@
 # Produktivitäts-Tracker
 
-Eine lokale Windows-App, mit der **du selbst** deinen Arbeitstag am PC auswertest —
+Eine lokale App für Windows und Mac, mit der **du selbst** deinen Arbeitstag am PC auswertest —
 um Zeit zu sparen, fokussierter zu arbeiten und **Doppelarbeit / unsaubere Abläufe**
 aufzudecken. Du startest und stoppst die Aufzeichnung jederzeit selbst.
 
@@ -38,7 +38,9 @@ Fünf Tabs mit Diagrammen:
 - **Offline nachtragen**: Meetings/Telefonate ohne PC manuell ergänzen.
 
 ## Bedienung
-1. `Produktivitaets-Tracker.exe` doppelklicken.
+1. Windows: `Produktivitaets-Tracker.exe` doppelklicken.
+   Mac: `Produktivitaets-Tracker-mac.zip` entpacken, App nach „Programme“ ziehen,
+   beim ersten Start meldet macOS, dass die App nicht überprüft werden konnte → Systemeinstellungen → Datenschutz & Sicherheit → ganz unten „Dennoch öffnen“ (nötig, bis die App von Apple beglaubigt ist).
 2. **„Tracking starten"**. Oben siehst du live, was läuft; die Tabs aktualisieren sich.
 3. Fenster schließen = läuft im Infobereich (Tray) weiter. „Beenden" stoppt ganz.
 4. Zeitraum oben umstellen (Heute / Gestern / Letzte 7 Tage).
@@ -58,6 +60,10 @@ Kein Keylogger, keine Screenshots, keine Kamera/Mikrofon, keine vollständigen U
 keine Cloud, keine Fremd-/Live-Überwachung, keine Leistungsbewertung. Siehe `DATENSCHUTZ.md`.
 
 ## Build (Entwickler)
+Mac (seit 16.11.2026): eigener Job im selben Workflow, `build-mac.spec`, Ergebnis
+`Produktivitaets-Tracker-mac.zip` + `version-mac.json` am Release `latest`. Plattformweiche
+in `activity.py` (Windows `win_activity.py`, Mac `mac_activity.py`).
+
 Die Windows-`.exe` wird automatisch per GitHub-Actions (`.github/workflows/build.yml`,
 PyInstaller `build.spec`) gebaut und ans Release **`latest`** gehängt. Lokal testen:
 `pip install -r requirements.txt && python app.py` (Windows).

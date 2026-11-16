@@ -1,4 +1,4 @@
-name: Build Windows EXE
+name: Build Windows EXE + Mac App
 
 on:
   push:
@@ -7,6 +7,10 @@ on:
 
 permissions:
   contents: write
+
+# Veröffentlicht wird NUR von main. Ein Lauf auf einem anderen Branch
+# (workflow_dispatch) baut und testet, hängt aber nichts ans Release --
+# sonst bekäme jeder Nutzer einen unfertigen Stand als Update angeboten.
 
 jobs:
   build:
@@ -23,6 +27,9 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
           pip install pyinstaller
+
+      - name: Rauchprobe (Module laden, Messung einmal aufrufen)
+        run: python -c "import activity, sampler, browser_url, autostart, updater, gui; print(activity.get_foreground()[1:2], activity.get_idle_seconds() >= 0)"
 
       - name: Build-Nummer einbetten
         shell: bash
@@ -42,13 +49,68 @@ jobs:
           path: dist/Produktivitaets-Tracker.exe
 
       - name: Publish release (latest)
+        if: github.ref == 'refs/heads/main'
         uses: softprops/action-gh-release@v2
         with:
           tag_name: latest
           name: Produktivitäts-Tracker (neueste Version)
           body: |
-            Fertige Windows-Anwendung. Datei **Produktivitaets-Tracker.exe** herunterladen und doppelklicken.
-            Die App aktualisiert sich künftig selbst. Alle Daten bleiben lokal auf dem PC.
+            **Windows:** Datei **Produktivitaets-Tracker.exe** herunterladen und doppelklicken.
+            **Mac (Apple-Chip):** **Produktivitaets-Tracker-mac.zip** herunterladen, entpacken, die App in „Programme“ ziehen. Beim ersten Start: Systemeinstellungen → Datenschutz & Sicherheit → „Dennoch öffnen“ (noch nicht von Apple beglaubigt).
+            Die App aktualisiert sich künftig selbst. Alle Daten bleiben lokal auf dem Rechner.
           files: |
             dist/Produktivitaets-Tracker.exe
             version.json
+
+  build-mac:
+    runs-on: macos-15   # Apple-Chip (arm64); macos-14 gibt es nicht mehr (16.11.)
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pyinstaller
+
+      - name: Rauchprobe (Module laden, Messung einmal aufrufen)
+        run: python -c "import activity, sampler, browser_url, autostart, updater, gui; print(activity.get_foreground()[1:2], activity.get_idle_seconds() >= 0)"
+
+      - name: Build-Nummer einbetten
+        run: |
+          BID="${{ github.run_number }}-${GITHUB_SHA:0:7}"
+          echo "BUILD_ID = \"$BID\"" > _buildinfo.py
+          echo "{\"build\": \"$BID\", \"name\": \"Produktivitaets-Tracker-mac.zip\"}" > version-mac.json
+          echo "Build-ID: $BID"
+
+      - name: Build App
+        run: pyinstaller --noconfirm build-mac.spec
+
+      - name: App startet (5 s, dann beenden)
+        run: |
+          ./dist/Produktivitaets-Tracker.app/Contents/MacOS/Produktivitaets-Tracker &
+          PID=$!
+          sleep 8
+          if kill -0 $PID 2>/dev/null; then echo "läuft"; kill $PID; else echo "App ist beim Start beendet"; exit 1; fi
+
+      - name: Zip
+        run: ditto -c -k --keepParent dist/Produktivitaets-Tracker.app dist/Produktivitaets-Tracker-mac.zip
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Produktivitaets-Tracker-mac
+          path: dist/Produktivitaets-Tracker-mac.zip
+
+      - name: Publish release (latest)
+        if: github.ref == 'refs/heads/main'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: latest
+          files: |
+            dist/Produktivitaets-Tracker-mac.zip
+            version-mac.json

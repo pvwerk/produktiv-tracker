@@ -1,5 +1,19 @@
 # changelog.py — Änderungsverlauf, im Tool unter „🆕 Was ist neu" lesbar.
 CHANGELOG = """\
+Version 7 — auch für den Mac
+
+NEU
+• Das Tool gibt es jetzt auch für den Mac (Apple-Chip). Es misst dasselbe
+  wie unter Windows: Programm im Vordergrund, Hauptadresse im Browser
+  (Safari, Chrome, Edge, Brave, Arc, Opera; Firefox nur als „Web“) und
+  Leerlauf.
+• macOS fragt beim ersten Mal nach zwei Freigaben: „Bildschirmaufnahme“
+  (nur für die Fenstertitel — das Tool macht keine Bildschirmfotos) und
+  „… möchte den Browser steuern“ (nur für die Hauptadresse). Beides ist
+  freiwillig; ohne läuft die Messung trotzdem.
+• Windows: keine Änderung an der Messung.
+
+
 Version 6 — CRM-Anbindung
 
 NEU
