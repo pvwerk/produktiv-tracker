@@ -56,7 +56,7 @@ jobs:
           name: Produktivitäts-Tracker (neueste Version)
           body: |
             **Windows:** Datei **Produktivitaets-Tracker.exe** herunterladen und doppelklicken.
-            **Mac (Apple-Chip):** **Produktivitaets-Tracker-mac.zip** herunterladen, entpacken, die App in „Programme“ ziehen. Beim ersten Start: Rechtsklick → Öffnen (noch nicht von Apple beglaubigt).
+            **Mac (Apple-Chip):** **Produktivitaets-Tracker-mac.zip** herunterladen, entpacken, die App in „Programme“ ziehen. Beim ersten Start: Systemeinstellungen → Datenschutz & Sicherheit → „Dennoch öffnen“ (noch nicht von Apple beglaubigt).
             Die App aktualisiert sich künftig selbst. Alle Daten bleiben lokal auf dem Rechner.
           files: |
             dist/Produktivitaets-Tracker.exe

@@ -40,7 +40,7 @@ Fünf Tabs mit Diagrammen:
 ## Bedienung
 1. Windows: `Produktivitaets-Tracker.exe` doppelklicken.
    Mac: `Produktivitaets-Tracker-mac.zip` entpacken, App nach „Programme“ ziehen,
-   beim ersten Start Rechtsklick → Öffnen (bis die App von Apple beglaubigt ist).
+   beim ersten Start meldet macOS, dass die App nicht überprüft werden konnte → Systemeinstellungen → Datenschutz & Sicherheit → ganz unten „Dennoch öffnen“ (nötig, bis die App von Apple beglaubigt ist).
 2. **„Tracking starten"**. Oben siehst du live, was läuft; die Tabs aktualisieren sich.
 3. Fenster schließen = läuft im Infobereich (Tray) weiter. „Beenden" stoppt ganz.
 4. Zeitraum oben umstellen (Heute / Gestern / Letzte 7 Tage).
