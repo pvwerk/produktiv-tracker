@@ -4,7 +4,7 @@ import threading
 
 import config
 import storage
-import win_activity
+import activity
 import browser_url
 
 
@@ -111,6 +111,8 @@ class Tracker:
         # bei Christianes erster Uebertragung am 09.11. (8 h Browser, 0 Webseiten).
         init = None
         try:
+            if activity.IS_MAC:
+                raise ImportError("uiautomation gibt es nur unter Windows")
             import uiautomation as _auto
             init = _auto.UIAutomationInitializerInThread(debug=False)
         except Exception:
@@ -132,10 +134,10 @@ class Tracker:
             dur = now - last
             last = now
 
-            idle_secs = win_activity.get_idle_seconds()
+            idle_secs = activity.get_idle_seconds()
             is_idle = idle_secs >= self.idle_threshold
 
-            hwnd, exe, title = win_activity.get_foreground()
+            hwnd, exe, title = activity.get_foreground()
             domain = None
             if not is_idle and exe in config.BROWSER_PROCESSES:
                 domain = self._browser_host(hwnd, exe, title)

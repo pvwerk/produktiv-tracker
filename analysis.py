@@ -138,6 +138,8 @@ def build_segments(samples, cfg=None):
 # Das Tool selbst. Ein offenes Tracker-Fenster ist keine Arbeit und darf
 # keinen Fokusblock bilden (09.11.2026: 56 min "Fokus" auf diesem Fenster).
 TRACKER_EXE = "produktivitaets-tracker.exe"
+# 16.11.2026: unter macOS heißt derselbe Prozess ohne Endung.
+TRACKER_PROZESSE = {TRACKER_EXE, "produktivitaets-tracker"}
 
 
 def domain_zeiten(samples, min_sek=10, max_eintraege=400):
@@ -198,7 +200,7 @@ def _focus_blocks(segments, idle_tolerance, pause_tolerance):
     cur = None  # {key, dur, start, end}
     for s in segments:
         # Das eigene Tracker-Fenster zaehlt wie Abwesenheit.
-        if s["idle"] or s.get("app") == TRACKER_EXE:
+        if s["idle"] or s.get("app") in TRACKER_PROZESSE:
             if cur and s["dur"] < idle_tolerance:
                 continue  # kurze Pause -> Block bleibt offen
             if cur:
@@ -346,7 +348,7 @@ def analyze(samples, cfg=None):
     segments = build_segments(samples, cfg)
     # Das eigene Tracker-Fenster ist kein Arbeitsschritt -- sonst erscheint
     # "Westnetz <-> Tracker" als angebliche Doppelarbeit.
-    active_segs = [s for s in segments if not s["idle"] and s.get("app") != TRACKER_EXE]
+    active_segs = [s for s in segments if not s["idle"] and s.get("app") not in TRACKER_PROZESSE]
     labels = {}
     seg_durs = defaultdict(float)
     for s in active_segs:

@@ -5,12 +5,48 @@
 # Funktioniert ohne Browser-Erweiterung über die Windows-UI-Automation.
 # Falls die Adresse nicht lesbar ist, wird None geliefert (Aufrufer nutzt dann
 # den Fenstertitel als Ersatz).
+import subprocess
+import sys
 from urllib.parse import urlparse
 
 try:
+    if sys.platform == "darwin":
+        raise ImportError("uiautomation gibt es nur unter Windows")
     import uiautomation as auto
 except Exception:  # pragma: no cover
     auto = None
+
+# 16.11.2026 macOS: Die Adresse kommt per AppleScript aus dem Browser. macOS
+# fragt dafür einmal je Browser "... möchte ... steuern" -- ohne Zustimmung
+# bleibt die Adresse leer und die Zeit zählt als "Web". Firefox kennt kein
+# AppleScript für die Adresse; dort bleibt es bei "Web".
+# Prozessname (klein) -> AppleScript-Ausdruck für die Adresse des aktiven Tabs
+_MAC_SKRIPTE = {
+    "safari": 'tell application "Safari" to return URL of front document',
+    "google chrome": 'tell application "Google Chrome" to return URL of active tab of front window',
+    "microsoft edge": 'tell application "Microsoft Edge" to return URL of active tab of front window',
+    "brave browser": 'tell application "Brave Browser" to return URL of active tab of front window',
+    "arc": 'tell application "Arc" to return URL of active tab of front window',
+    "opera": 'tell application "Opera" to return URL of active tab of front window',
+}
+
+
+def _mac_host(exe):
+    skript = _MAC_SKRIPTE.get((exe or "").lower())
+    if not skript:
+        return None
+    # "tell application" STARTET ein Programm, das nicht läuft (16.11. im
+    # Test so passiert: Safari ging auf). Deshalb nur fragen, wenn es läuft.
+    programm = skript.split('"')[1]
+    skript = 'if application "%s" is running then\n%s\nend if' % (programm, skript)
+    try:
+        r = subprocess.run(["/usr/bin/osascript", "-e", skript],
+                           capture_output=True, text=True, timeout=3)
+        if r.returncode != 0:
+            return None
+        return host_from_value(r.stdout.strip())
+    except Exception:
+        return None
 
 # Namen der Adressleiste in verschiedenen Sprachen
 _CHROMIUM_NAMES = (
@@ -103,6 +139,8 @@ def _all_edits(control, max_depth=20, _depth=0, acc=None):
 
 def get_browser_host(hwnd, exe):
     """Liefert den Host des aktiven Browser-Tabs oder None."""
+    if sys.platform == "darwin":
+        return _mac_host(exe)
     if auto is None or not hwnd:
         return None
     try:

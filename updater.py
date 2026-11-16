@@ -13,6 +13,13 @@ BASE = f"https://github.com/{REPO}/releases/latest/download"
 VERSION_URL = BASE + "/version.json"
 EXE_NAME = "Produktivitaets-Tracker.exe"
 EXE_URL = BASE + "/" + EXE_NAME
+# 16.11.2026 macOS: eigene Versionsdatei, weil Windows- und Mac-Build getrennt
+# laufen -- schlägt einer fehl, darf der andere kein Update anbieten, das es
+# gar nicht gibt.
+IS_MAC = sys.platform == "darwin"
+MAC_VERSION_URL = BASE + "/version-mac.json"
+MAC_ZIP_NAME = "Produktivitaets-Tracker-mac.zip"
+MAC_ZIP_URL = BASE + "/" + MAC_ZIP_NAME
 
 
 def local_build():
@@ -36,7 +43,7 @@ def _get(url, timeout=10):
 def remote_build():
     """Build-Nummer der neuesten Version oder None."""
     try:
-        data = json.loads(_get(VERSION_URL).decode("utf-8"))
+        data = json.loads(_get(MAC_VERSION_URL if IS_MAC else VERSION_URL).decode("utf-8"))
         return str(data.get("build")) if data.get("build") else None
     except Exception:
         return None
@@ -58,6 +65,8 @@ def apply_update():
     wenn der Prozess angestoßen wurde (Aufrufer soll danach die App beenden)."""
     if not is_frozen():
         return False
+    if IS_MAC:
+        return _apply_update_mac()
     exe_path = sys.executable
     exe_dir = os.path.dirname(exe_path)
     new_path = os.path.join(exe_dir, EXE_NAME + ".new")
@@ -90,4 +99,43 @@ def apply_update():
     subprocess.Popen(["cmd", "/c", bat],
                      creationflags=NO_WINDOW | NEW_GROUP,
                      close_fds=True)
+    return True
+
+
+def _apply_update_mac():
+    """macOS: neue .app laden, entpacken, nach Programmende austauschen, neu starten.
+
+    Die alte .app wird nicht gelöscht, sondern in den Papierkorb des
+    Benutzers gelegt (~/.Trash) -- so bleibt sie wiederherstellbar.
+    """
+    import autostart
+    app = autostart.mac_app_pfad()
+    if not app:
+        return False
+    arbeit = tempfile.mkdtemp(prefix="pt_update_")
+    zip_pfad = os.path.join(arbeit, MAC_ZIP_NAME)
+    with open(zip_pfad, "wb") as f:
+        f.write(_get(MAC_ZIP_URL, timeout=180))
+    # ditto erhält Programmpaket-Struktur und Signatur (unzip nicht zuverlässig)
+    subprocess.run(["/usr/bin/ditto", "-x", "-k", zip_pfad, arbeit], check=True)
+    neu = os.path.join(arbeit, os.path.basename(app))
+    if not os.path.isdir(neu):
+        kandidaten = [d for d in os.listdir(arbeit) if d.endswith(".app")]
+        if not kandidaten:
+            return False
+        neu = os.path.join(arbeit, kandidaten[0])
+    papierkorb = os.path.expanduser("~/.Trash/Produktivitaets-Tracker-alt-%d.app" % os.getpid())
+    skript = os.path.join(arbeit, "austausch.sh")
+    with open(skript, "w", encoding="utf-8") as f:
+        f.write(
+            "#!/bin/sh\n"
+            # warten, bis die laufende App beendet ist
+            f"while kill -0 {os.getpid()} 2>/dev/null; do sleep 0.5; done\n"
+            f'mv "{app}" "{papierkorb}" || exit 1\n'
+            f'mv "{neu}" "{app}" || mv "{papierkorb}" "{app}"\n'
+            f'xattr -dr com.apple.quarantine "{app}" 2>/dev/null\n'
+            f'open "{app}"\n'
+        )
+    subprocess.Popen(["/bin/sh", skript], start_new_session=True,
+                     stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     return True

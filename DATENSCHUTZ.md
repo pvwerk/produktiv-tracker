@@ -18,7 +18,8 @@ eigenen Arbeitstag am PC zu verstehen und Abläufe zu verbessern. Es ist **kein
 - **Keine** vollständigen URLs oder Dateipfade.
 - **Keine** Cloud, solange du nichts anderes einstellst — es wird **nichts** ins Internet
   gesendet. Alle Daten liegen lokal in
-  `%LOCALAPPDATA%\Produktivitaets-Tracker\tracker.db`.
+  `%LOCALAPPDATA%\Produktivitaets-Tracker\tracker.db` (Windows) bzw.
+  `~/Library/Application Support/Produktivitaets-Tracker/tracker.db` (Mac).
   *Ausnahme, die du selbst einschaltest:* die optionale **CRM-Anbindung** (siehe unten).
 - **Keine** Live-Überwachung durch Vorgesetzte oder Dritte.
 - **Keine** Leistungsbewertung / kein Ranking / keine arbeitsrechtlichen Konsequenzen.
