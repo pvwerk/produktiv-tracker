@@ -25,6 +25,9 @@ DEFAULT_PROCESS_CATEGORIES = {
     "thunderbird.exe": "E-Mail",
     "agfeo dashboard.exe": "Telefonie (AGFEO)",
     "dashboard.exe": "Telefonie (AGFEO)",
+    # 18.11.2026, Jan (Fehlermeldung be4a260b): ctimon.exe ist das AGFEO-Dashboard (Telefonanlage),
+    # wurde bei Christiane als unbekannte Anwendung gemeldet.
+    "ctimon.exe": "Telefonie (AGFEO)",
     "winword.exe": "Office",
     "excel.exe": "Office",
     "powerpnt.exe": "Office",
@@ -61,7 +64,7 @@ DEFAULT_PROCESS_CATEGORIES = {
 }
 
 # Hinweise, um die AGFEO-Software zu erkennen (Prozessname enthält einen dieser Texte)
-AGFEO_PROCESS_HINTS = ["agfeo", "dashboard"]
+AGFEO_PROCESS_HINTS = ["agfeo", "dashboard", "ctimon"]
 
 # Domain (Host) -> Kategorie. Host wird auf Hauptadresse reduziert (z.B. www.westnetz.de)
 DEFAULT_DOMAIN_CATEGORIES = {
